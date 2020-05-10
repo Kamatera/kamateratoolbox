@@ -60,10 +60,10 @@ Example playbooks:
 The Kamatera module is pending approval by Salt, until it's approved it can be installed using Python:
 
 ```
-pip install --upgrade https://github.com/Kamatera/salt/archive/kamatera-cloud.zip
+pip install --upgrade https://github.com/Kamatera/salt/archive/master.zip
 ```
 
 Documentation:
 
 * [Using Salt Cloud](https://docs.saltstack.com/en/latest/topics/cloud/index.html)
-* [Getting started with Kamatera for Salt Cloud](https://github.com/Kamatera/salt/blob/kamatera-cloud/doc/topics/cloud/kamatera.rst#getting-started-with-kamatera)
+* [Getting started with Kamatera for Salt Cloud](https://github.com/Kamatera/salt/blob/master/doc/topics/cloud/kamatera.rst#getting-started-with-kamatera)
