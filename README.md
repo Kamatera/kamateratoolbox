@@ -48,3 +48,14 @@ Documentation:
 
 * [Salt Cloud Kamatera module](https://github.com/Kamatera/salt-cloud-module-kamatera/blob/master/README.md)
 * [Using Salt Cloud](https://docs.saltstack.com/en/latest/topics/cloud/index.html)
+
+## Terraform
+
+[Terraform](https://www.terraform.io/) is a tool for building, changing, and versioning infrastructure safely and efficiently.
+
+Kamatera is supported for Terraform version 0.12 or higher via a provider binary.
+
+Documentation:
+
+* [Kamatera Terraform provider](https://github.com/Kamatera/terraform-provider-kamatera/blob/master/README.md)
+* [Introduction to Terraform](https://www.terraform.io/intro/index.html)
