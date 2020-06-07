@@ -2,10 +2,6 @@
 
 [Kamatera Cloud](https://www.kamatera.com/express/compute/) 3rd Party Tools and Integrations
 
-## Support
-
-If you have any request, comment or found a bug, please email us: devteam@kamatera.com
-
 ## Getting Kamatera API keys
 
 All the 3rd party tools and integrations require Kamatera API keys.
@@ -63,3 +59,7 @@ Documentation:
 
 * [Kamatera Terraform provider](https://github.com/Kamatera/terraform-provider-kamatera/blob/master/README.md)
 * [Introduction to Terraform](https://www.terraform.io/intro/index.html)
+
+## Support
+
+If you have any request, comment or found a bug, please email us: devteam@kamatera.com
