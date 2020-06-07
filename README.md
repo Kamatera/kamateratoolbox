@@ -2,6 +2,10 @@
 
 [Kamatera Cloud](https://www.kamatera.com/express/compute/) 3rd Party Tools and Integrations
 
+## Support
+
+If you have any request, comment or found a bug, please email us: devteam@kamatera.com
+
 ## Getting Kamatera API keys
 
 All the 3rd party tools and integrations require Kamatera API keys.
