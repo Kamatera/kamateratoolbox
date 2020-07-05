@@ -1,0 +1,19 @@
+name: CI
+on:
+  push:
+jobs:
+  test:
+    runs-on: ubuntu-18.04
+    steps:
+    - uses: actions/checkout@v2
+    - env:
+        KAMATERA_API_CLIENT_ID: ${{ secrets.KAMATERA_API_CLIENT_ID }}
+        KAMATERA_API_SECRET: ${{ secrets.KAMATERA_API_SECRET }}
+        KAMATERA_API_SERVER: "https://cloudcli.cloudwm.com"
+      run: |
+        sudo apt-get install -y python3-venv &&\
+        python3 -m venv venv &&\
+        venv/bin/python3 -m pip install --upgrade pip &&\
+        venv/bin/python3 -m pip install --upgrade setuptools wheel &&\
+        venv/bin/python3 -m pip install -r requirements.txt &&\
+        venv/bin/pytest
