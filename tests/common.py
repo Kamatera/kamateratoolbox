@@ -115,9 +115,9 @@ def terminate_fixture_server(title, env_var_prefix, server):
             "force": True
         })
         print("terminate %s response: %s" % (title, res))
-        command_id = int(res[0])
-        wait_command(command_id)
-        print("%s terminated" % title)
+        # command_id = int(res[0])
+        # wait_command(command_id)
+        # print("%s terminated" % title)
 
 
 def assert_only_one_server(path):
