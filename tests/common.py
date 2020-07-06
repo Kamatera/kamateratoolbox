@@ -120,10 +120,10 @@ def terminate_fixture_server(title, env_var_prefix, server):
         # print("%s terminated" % title)
 
 
-def assert_only_one_server(path):
+def assert_only_one_server(servers, path):
     with pytest.raises(Exception, match="Too many matching servers"):
         cloudcli_server_request(path, method="POST", json={
-            "name": ".*"
+            "name": "|".join([server["name"] for server in servers])
         })
 
 

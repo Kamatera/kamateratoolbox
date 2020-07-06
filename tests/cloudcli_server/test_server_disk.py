@@ -3,7 +3,7 @@ from ..common import cloudcli_server_request, assert_only_one_server, assert_no_
 
 
 def test_server_disk_only_one_server(session_server_powered_on, session_server_powered_off):
-    assert_only_one_server("/server/disk")
+    assert_only_one_server([session_server_powered_on, session_server_powered_off], "/server/disk")
 
 
 def test_server_disk_no_matching_servers():

@@ -4,7 +4,7 @@ from ..common import cloudcli_server_request, assert_only_one_server, assert_no_
 
 
 def test_server_attach_only_one_server(session_server_powered_on, session_server_powered_off):
-    assert_only_one_server("/service/server/ssh")
+    assert_only_one_server([session_server_powered_on, session_server_powered_off], "/service/server/ssh")
 
 
 def test_server_attach_no_matching_servers():
