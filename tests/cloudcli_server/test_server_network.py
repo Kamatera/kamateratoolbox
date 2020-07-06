@@ -1,8 +1,5 @@
-import os
 import pytest
-import secrets
-import datetime
-import requests
+import time
 from ..common import cloudcli_server_request, assert_only_one_server, assert_no_matching_servers, wait_command
 
 
@@ -57,6 +54,12 @@ def test_server_network_operations(temp_server, test_network):
         "connect": mac_address
     })
     command_id = int(res)
+    print("sleeping 5 seconds to ensure connect operation is running before testing existing operation running error")
+    time.sleep(5)
+    with pytest.raises(Exception, match="Existing operation is currently running"):
+        cloudcli_server_request("/server/network", method="POST", json={
+            "name": temp_server["name"],
+        })
     wait_command(command_id)
     res = cloudcli_server_request("/server/network", method="POST", json={
         "name": temp_server["name"]
@@ -77,3 +80,4 @@ def test_server_network_operations(temp_server, test_network):
         "name": temp_server["name"]
     })
     assert len(res) == 2
+
