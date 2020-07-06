@@ -1,3 +1,4 @@
+import secrets
 from ..common import cloudcli_server_request, assert_only_one_server, assert_no_matching_servers
 
 
@@ -21,15 +22,16 @@ def test_server_description_get(session_server_powered_on):
 
 
 def test_server_description_set(temp_server):
+    new_description = "My Server Descriiption!!!\n%s" % secrets.token_urlsafe(20)
     res = cloudcli_server_request("/server/description", method="POST", json={
         "name": temp_server["name"],
-        "set": "My Server Descriiption!!!"
+        "set": new_description
     })
     assert len(res) == 1
     server = res[0]
     assert set(server.keys()) == {"description", "name"}
     assert server["name"] == temp_server["name"]
-    assert server["description"] == "My Server Descriiption!!!"
+    assert server["description"] == new_description
     res = cloudcli_server_request("/server/description", method="POST", json={
         "name": temp_server["name"]
     })
@@ -37,4 +39,4 @@ def test_server_description_set(temp_server):
     server = res[0]
     assert set(server.keys()) == {"description", "name"}
     assert server["name"] == temp_server["name"]
-    assert server["description"] == "My Server Descriiption!!!"
+    assert server["description"] == new_description

@@ -4,6 +4,8 @@ Tools to run integration testing for the Kamatera 3rd party drivers
 
 ## Using Pytest
 
+[Pytest](https://docs.pytest.org/en/latest/) is the testing framework used to run all tests.
+
 Install
 
 ```
@@ -64,16 +66,20 @@ TEMP_SERVER_KEEP=yes TEMP_SERVER_NAME=$SESSION_SERVER_POWERED_ON_NAME TEMP_SERVE
 
 This is the server-side that supports all the other tools.
 
-Download the code
+By default, the production server is used for testing. You can also run a local server to debug problems.
+
+Download the latest server code
 
 ```
+rm -rf .cloudcli-server &&\
 mkdir .cloudcli-server &&\
 wget https://github.com/cloudwm/cloudcli-server/archive/master.zip \
      -O .cloudcli-server/cloudcli-server.zip &&\
-( cd .cloudcli-server && unzip -q cloudcli-server.zip )
+( cd .cloudcli-server && unzip -q cloudcli-server.zip ) &&\
+rm .cloudcli-server/cloudcli-server.zip
 ```
 
-Build
+Build the server Docker image
 
 ```
 docker build -t cloudcli-server .cloudcli-server/cloudcli-server-master
@@ -83,6 +89,12 @@ Run
 
 ```
 docker run -e CLOUDCLI_PROVIDER=proxy -e CLOUDCLI_API_SERVER=https://console.kamatera.com \
-           --name cloudcli-server --rm -d -p 8080:80 cloudcli-server
+           -e LOG_CHANNEL=errorlog -e APP_DEBUG=true \
+           --name cloudcli-server --rm -d -p 8000:80 cloudcli-server
 ```
 
+Set env var to use the local server
+
+```
+export KAMATERA_API_SERVER=http://localhost:8000
+```
