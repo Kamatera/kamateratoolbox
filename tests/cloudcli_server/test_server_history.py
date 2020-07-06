@@ -20,7 +20,7 @@ def test_server_history(temp_server):
     res = cloudcli_server_request("/server/history", method="POST", json={
         "name": temp_server["name"],
     })
-    assert len(res) == 1
+    assert len(res) == 2
     assert set(res[0].keys()) == {"date", "user", "action"}
     assert datetime.datetime.strptime(res[0]["date"], "%d/%m/%Y %H:%M:%S").date() == datetime.datetime.now().date()
     assert len(res[0]["user"]) > 3
