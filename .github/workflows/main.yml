@@ -12,7 +12,13 @@ jobs:
         KAMATERA_API_SERVER: "https://cloudcli.cloudwm.com"
         DOCKER_HUB_PASSWORD: ${{ secrets.DOCKER_HUB_PASSWORD }}
         DOCKER_HUB_USER: ${{ secrets.DOCKER_HUB_USER }}
+        TESTING_SSHKEY: ${{ secrets.TESTING_SSHKEY }}
+        TESTING_SSHKEY_PUB: ${{ secrets.TESTING_SSHKEY_PUB }}
       run: |
+        echo "${TESTING_SSHKEY}" > testing_sshkey.id_rsa &&\
+        echo "${TESTING_SSHKEY_PUB}" > testing_sshkey.id_rsa.pub &&\
+        chmod 400 testing_sshkey.id_rsa &&\
+        export TESTING_SSHKEY_PATH=`pwd`/testing_sshkey.id_rsa &&\
         mkdir .cloudcli-server &&\
         wget https://github.com/cloudwm/cloudcli-server/archive/master.zip -O .cloudcli-server/cloudcli-server.zip &&\
         ( cd .cloudcli-server && unzip -q cloudcli-server.zip ) &&\
@@ -30,7 +36,7 @@ jobs:
         venv/bin/python3 -m pip install --upgrade pip &&\
         venv/bin/python3 -m pip install --upgrade setuptools wheel &&\
         venv/bin/python3 -m pip install -r requirements.txt &&\
-        if ! venv/bin/pytest -n4 --dist=loadfile; then
+        if ! venv/bin/pytest -n6 --dist=loadfile; then
           docker logs cloudcli-server
           exit 1
         fi

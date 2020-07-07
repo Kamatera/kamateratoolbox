@@ -1,5 +1,6 @@
+import time
 import pytest
-from ..common import cloudcli_server_request, DEFAULT_FIXTURE_SERVER
+from ..common import cloudcli_server_request, DEFAULT_FIXTURE_SERVER, get_server_id
 
 
 def test_server_info(session_server_powered_on, session_server_powered_off):
@@ -26,6 +27,15 @@ def test_server_info(session_server_powered_on, session_server_powered_off):
     assert float(server["priceMonthlyOn"]) > 0.0
     assert float(server["priceHourlyOn"]) > 0.0
     assert float(server["priceHourlyOff"]) > 0.0
+
+
+def test_server_info_by_id(session_server_powered_on):
+    res = cloudcli_server_request("/service/server/info", method="POST", json={
+        "id": get_server_id(session_server_powered_on)
+    })
+    assert len(res) == 1
+    assert set(res[0].keys()) == {"id", "datacenter", "cpu", "name", "ram", "power", "diskSizes", "networks", "billing",
+                                  "traffic", "managed", "backup", "priceMonthlyOn", "priceHourlyOn", "priceHourlyOff"}
 
 
 def test_server_info_no_servers():

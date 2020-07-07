@@ -4,6 +4,7 @@ import requests
 import datetime
 import secrets
 import pytest
+import paramiko
 
 
 DEFAULT_FIXTURE_SERVER = {
@@ -75,7 +76,7 @@ def get_command_status(command_id):
     return response[0]
 
 
-def create_fixture_server(title, env_var_prefix, poweronaftercreate="yes"):
+def create_fixture_server(title, env_var_prefix, poweronaftercreate="yes", wait=True):
     if os.environ.get("%s_NAME" % env_var_prefix) and os.environ.get("%s_PASSWORD" % env_var_prefix):
         name = os.environ["%s_NAME" % env_var_prefix]
         print("Using existing %s %s" % (title, name))
@@ -94,13 +95,15 @@ def create_fixture_server(title, env_var_prefix, poweronaftercreate="yes"):
         **DEFAULT_FIXTURE_SERVER,
         "poweronaftercreate": poweronaftercreate,
     }
+    command_id = None
     if create_server:
         res = cloudcli_server_request("/service/server", method="POST", json=create_request_data)
         print("%s create response: %s" % (title, res))
         command_id = int(res[0])
-        wait_command(command_id)
-        print("%s created" % title)
-    return create_server, {"name": name, "password": password, "create_request_data": create_request_data}
+        if wait:
+            wait_command(command_id)
+            print("%s created" % title)
+    return create_server, {"name": name, "password": password, "create_request_data": create_request_data, "command_id": command_id}
 
 
 def terminate_fixture_server(title, env_var_prefix, server):
@@ -120,15 +123,42 @@ def terminate_fixture_server(title, env_var_prefix, server):
         # print("%s terminated" % title)
 
 
-def assert_only_one_server(servers, path):
+def assert_only_one_server(servers, path, extra_json=None):
     with pytest.raises(Exception, match="Too many matching servers"):
         cloudcli_server_request(path, method="POST", json={
-            "name": "|".join([server["name"] for server in servers])
+            "name": "|".join([server["name"] for server in servers]),
+            **(extra_json if extra_json else {})
         })
 
 
-def assert_no_matching_servers(path):
+def assert_no_matching_servers(path, extra_json=None):
     with pytest.raises(Exception, match="No servers found"):
         cloudcli_server_request(path, method="POST", json={
-            "name": "__non_existent_server_name__"
+            "name": "__non_existent_server_name__",
+            **(extra_json if extra_json else {})
         })
+
+
+def get_server_id(server):
+    res = cloudcli_server_request("/service/server/info", method="POST", json={
+        "name": server["name"]
+    })
+    assert len(res) == 1
+    return res[0]["id"]
+
+
+def assert_server_ssh(server):
+    res = cloudcli_server_request("/service/server/ssh", method="POST", json={
+        "name": server["name"]
+    })
+    assert len(res) == 1
+    assert set(res[0].keys()) == {"id", "name", "externalIp"}
+    server_id = res[0]["id"]
+    assert len(server_id) > 10
+    assert res[0]["name"] == server["name"]
+    server_external_ip = res[0]["externalIp"]
+    ssh_client = paramiko.SSHClient()
+    ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh_client.connect(server_external_ip, username="root", password=server["password"])
+    assert ssh_client.exec_command("pwd")[1].read() == b'/root\n'
+    return server_id, server_external_ip

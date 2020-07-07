@@ -20,6 +20,7 @@ Set env vars
 export KAMATERA_API_CLIENT_ID=
 export KAMATERA_API_SECRET=
 export KAMATERA_API_SERVER=https://cloudcli.cloudwm.com
+export TESTING_SSHKEY_PATH=/path/to/key.id_rsa
 ```
 
 Run all tests

@@ -1,6 +1,6 @@
 import pytest
 import time
-from ..common import cloudcli_server_request, assert_only_one_server, assert_no_matching_servers, wait_command
+from ..common import cloudcli_server_request, assert_only_one_server, assert_no_matching_servers, wait_command, get_server_id
 
 
 def test_server_network_only_one_server(session_server_powered_on, session_server_powered_off):
@@ -26,6 +26,14 @@ def test_server_network_list(session_server_powered_on):
     assert res["manualConfigEnabled"] == False
     assert set(res["actions"].keys()) == {"nic.disconnect", "nic.connect", "nic.ip.remove", "nic.ip.add", "nic.change", "nic.remove", "nic.info"}
     assert all((isinstance(v, bool) for v in res["actions"].values()))
+
+
+def test_server_network_list_by_id(session_server_powered_on):
+    res = cloudcli_server_request("/server/network", method="POST", json={
+        "id": get_server_id(session_server_powered_on)
+    })
+    assert len(res) == 1
+    assert set(res[0].keys()) == {"network", "connected", "mac", "ips", "routedIps", "manualConfigEnabled", "actions"}
 
 
 def test_server_network_operations(temp_server, test_network):

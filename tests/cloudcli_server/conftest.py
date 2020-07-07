@@ -2,7 +2,7 @@ import os
 import random
 import pytest
 import requests
-from ..common import terminate_fixture_server, create_fixture_server
+from ..common import terminate_fixture_server, create_fixture_server, wait_command
 
 
 @pytest.fixture(scope="session")
@@ -27,6 +27,27 @@ def temp_server():
     yield server
     if is_created_server:
         terminate_fixture_server("temp server", "TEMP_SERVER", server)
+
+
+@pytest.fixture()
+def temp_servers_factory():
+    servers = {}
+
+    def _temp_servers_factory(command):
+        if command == "create":
+            server_num = len(servers) + 1
+            is_created_server, server = create_fixture_server("temp server %s" % server_num, "TEMP_SERVER_%s" % server_num, wait=False)
+            servers[server_num] = {"is_created": is_created_server, "server": server}
+            return server
+        elif command == "wait":
+            for server in servers.values():
+                if server["server"]["command_id"]:
+                    wait_command(server["server"]["command_id"])
+
+    yield _temp_servers_factory
+    for server_num, server in servers.items():
+        if server["is_created"]:
+            terminate_fixture_server("temp server %s" % server_num, "TEMP_SERVER_%s" % server_num, server["server"])
 
 
 @pytest.fixture()
