@@ -35,7 +35,12 @@ jobs:
         wget https://github.com/cloudwm/cloudcli/archive/master.zip -O .cloudcli/cloudcli.zip &&\
         ( cd .cloudcli && unzip -q cloudcli.zip ) && rm .cloudcli/cloudcli.zip &&\
         mkdir .cloudcli/etc && export CLOUDCLI_ETC_PATH=`pwd`/.cloudcli/etc &&\
-        ( cd .cloudcli/cloudcli-master && bin/build.sh start_build_environment && bin/build.sh build ) &&\
+        cd .cloudcli/cloudcli-master &&\
+        docker build --build-arg GOOS=linux --build-arg GOARCH=amd64 -t cloudwm-cli-build -f ./Dockerfile.build . &&\
+        docker run -d --rm --name cloudwm-cli-build -v `pwd`:/go/src/github.com/cloudwm/cli cloudwm-cli-build tail -f /dev/null &&\
+        docker exec cloudwm-cli-build dep ensure &&\
+        docker exec cloudwm-cli-build go build -o cloudcli main.go &&\
+        sudo chown $USER ./cloudcli && sudo chmod +x ./cloudcli &&\
         export CLOUDCLI_BINARY=`pwd`/.cloudcli/cloudcli-master/cloudcli &&\
         sudo apt-get install -y python3-venv &&\
         python3 -m venv venv &&\
