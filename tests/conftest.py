@@ -2,7 +2,11 @@ import os
 import random
 import pytest
 import requests
-from ..common import terminate_fixture_server, create_fixture_server, wait_command
+import tempfile
+import subprocess
+import json
+from ruamel import yaml
+from .common import terminate_fixture_server, create_fixture_server, wait_command
 
 
 @pytest.fixture(scope="session")
@@ -82,3 +86,42 @@ def test_network():
     subnetId = subnet["subnetId"]
     availableIps = [ip["ip"] for ip in requests.get("https://console.kamatera.com/svc/networks/ips?subnetId=%s" % subnetId, headers=headers).json() if not ip["clearIsEnable"]]
     yield {"id": id, "name": name, "vlanId": vlanId, "subnetId": subnetId, "availableIps": availableIps, "randomIp": random.choice(availableIps)}
+
+
+@pytest.fixture(scope="session")
+def cloudcli():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        if os.environ.get("CLOUDCLI_BINARY"):
+            cloudcli_binary = os.environ["CLOUDCLI_BINARY"]
+        else:
+            subprocess.check_call(["curl", "-so", "cloudcli.tar.gz", "https://cloudcli.cloudwm.com/binaries/latest/cloudcli-linux-amd64.tar.gz"], cwd=tmpdir)
+            subprocess.check_call(["tar", "-xzf", os.path.join(tmpdir, "cloudcli.tar.gz")], cwd=tmpdir)
+            subprocess.check_call(["chmod", "+x", "cloudcli"], cwd=tmpdir)
+            cloudcli_binary = "./cloudcli"
+        if os.environ.get("CLOUDCLI_SCHEMA_FILE"):
+            subprocess.check_call(["ln", "-s", os.environ["CLOUDCLI_SCHEMA_FILE"], os.path.join(tmpdir, ".cloudcli.schema.json")])
+        else:
+            subprocess.check_call([cloudcli_binary, "init", "--no-config"], cwd=tmpdir, env={
+                "HOME": tmpdir,
+                "CLOUDCLI_APICLIENTID": os.environ["KAMATERA_API_CLIENT_ID"],
+                "CLOUDCLI_APISECRET": os.environ["KAMATERA_API_SECRET"],
+                "CLOUDCLI_APISERVER": os.environ["KAMATERA_API_SERVER"],
+            })
+
+        def _cloudcli(*args):
+            try:
+                output = subprocess.check_output([cloudcli_binary, *args], cwd=tmpdir, env={
+                    "HOME": tmpdir,
+                    "CLOUDCLI_APICLIENTID": os.environ["KAMATERA_API_CLIENT_ID"],
+                    "CLOUDCLI_APISECRET": os.environ["KAMATERA_API_SECRET"],
+                    "CLOUDCLI_APISERVER": os.environ["KAMATERA_API_SERVER"],
+                }, stderr=subprocess.STDOUT).decode()
+            except subprocess.CalledProcessError as exc:
+                raise Exception("cloudcli failed exit code %s: %s" % (exc.returncode, exc.output))
+            if "--format json" in  " ".join(args):
+                output = json.loads(output)
+            elif "--format yaml" in " ".join(args):
+                output = yaml.safe_load(output)
+            return output
+
+        yield _cloudcli

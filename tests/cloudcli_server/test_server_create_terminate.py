@@ -3,7 +3,7 @@ import paramiko
 from ..common import cloudcli_server_request, get_server_name, get_server_password, wait_command
 
 
-def test_server_create_sshkey_tags_script_userdata():
+def test_server_create_terminate_sshkey_tags_script_userdata():
     name = get_server_name()
     print("Creating server with sshkey %s" % name)
     with open(os.environ["TESTING_SSHKEY_PATH"] + ".pub") as f:
@@ -42,8 +42,11 @@ def test_server_create_sshkey_tags_script_userdata():
         ssh_client.connect(server_external_ip, username="root", key_filename=os.environ["TESTING_SSHKEY_PATH"])
         assert ssh_client.exec_command("pwd")[1].read() == b'/root\n'
         assert ssh_client.exec_command("cat test.txt")[1].read() == b'hello script file\n'
-    finally:
-        print("Removing server %s" % name)
+        cloudcli_server_request("/service/server/terminate", method="POST", json={
+            "name": name,
+            "force": True
+        })
+    except Exception:
         try:
             cloudcli_server_request("/service/server/terminate", method="POST", json={
                 "name": name,
@@ -51,3 +54,4 @@ def test_server_create_sshkey_tags_script_userdata():
             })
         except Exception:
             pass
+        raise

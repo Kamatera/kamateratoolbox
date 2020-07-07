@@ -31,6 +31,12 @@ jobs:
                    -e LOG_CHANNEL=errorlog -e APP_DEBUG=true \
                    --name cloudcli-server --rm -d -p 8000:80 cloudwm/cloudcli-server &&\
         export KAMATERA_API_SERVER=http://localhost:8000 &&\
+        mkdir .cloudcli &&\
+        wget https://github.com/cloudwm/cloudcli/archive/master.zip -O .cloudcli/cloudcli.zip &&\
+        ( cd .cloudcli && unzip -q cloudcli.zip ) && rm .cloudcli/cloudcli.zip &&\
+        mkdir .cloudcli/etc && export CLOUDCLI_ETC_PATH=`pwd`/.cloudcli/etc &&\
+        ( cd .cloudcli/cloudcli-master && bin/build.sh start_build_environment && bin/build.sh build ) &&\
+        export CLOUDCLI_BINARY=`pwd`/.cloudcli/cloudcli-master/cloudcli &&\
         sudo apt-get install -y python3-venv &&\
         python3 -m venv venv &&\
         venv/bin/python3 -m pip install --upgrade pip &&\

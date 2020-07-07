@@ -67,7 +67,9 @@ TEMP_SERVER_KEEP=yes TEMP_SERVER_NAME=$SESSION_SERVER_POWERED_ON_NAME TEMP_SERVE
 
 This is the server-side that supports all the other tools.
 
-By default, the production server is used for testing. You can also run a local server to debug problems.
+Relevant tests are undet tests/cloudcli_server
+
+By default, the production server is used for testing. You can also run a local server to debug problems:
 
 Download the latest server code
 
@@ -98,4 +100,45 @@ Set env var to use the local server
 
 ```
 export KAMATERA_API_SERVER=http://localhost:8000
+```
+
+## cloudcli
+
+Cloudcli provide CLI access to all features
+
+By default, the production version is downloaded and used, however you can use your own binary for testing:
+
+```
+export CLOUDCLI_BINARY=/path/to/cloudcli
+```
+
+The cloudcli schema is also downloaded on each startup, you can speed it up by using your existing schema:
+
+```
+export CLOUDCLI_SCHEMA_FILE="${HOME}/.cloudcli.schema.json"
+```
+
+You can also compile your own cloudcli binary:
+
+```
+rm -rf .cloudcli &&\
+mkdir .cloudcli &&\
+wget https://github.com/cloudwm/cloudcli/archive/master.zip \
+     -O .cloudcli/cloudcli.zip &&\
+( cd .cloudcli && unzip -q cloudcli.zip ) &&\
+rm .cloudcli/cloudcli.zip
+```
+
+Build
+
+```
+mkdir -p .cloudcli/etc &&\
+export CLOUDCLI_ETC_PATH=`pwd`/.cloudcli/etc &&\
+( cd .cloudcli/cloudcli-master && bin/build.sh start_build_environment && bin/build.sh build )
+```
+
+Set env var so the tests use this binary:
+
+```
+export CLOUDCLI_BINARY=`pwd`/.cloudcli/cloudcli-master/cloudcli
 ```
