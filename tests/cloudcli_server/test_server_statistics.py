@@ -1,6 +1,6 @@
 import pytest
 import datetime
-from ..common import cloudcli_server_request, assert_only_one_server, assert_no_matching_servers, get_server_name, wait_command, get_server_id
+from ..common import cloudcli_server_request, assert_only_one_server, assert_no_matching_servers
 
 
 def test_server_statistics_only_one_server(session_server_powered_on, session_server_powered_off):

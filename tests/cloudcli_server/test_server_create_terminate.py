@@ -31,7 +31,7 @@ def test_server_create_terminate_sshkey_tags_script_userdata():
             "tag": "foo bar"
         })
         assert len(res) == 1
-        wait_command(res[0])
+        wait_command(res[0], ignore_error=False)
         res = cloudcli_server_request("/service/server/ssh", method="POST", json={
             "name": name
         })

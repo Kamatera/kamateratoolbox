@@ -7,6 +7,10 @@ import pytest
 import paramiko
 
 
+class WaitCommandErrorException(Exception):
+    pass
+
+
 DEFAULT_FIXTURE_SERVER = {
     "datacenter": "IL",
     "image": "ubuntu_server_18.04_64-bit",
@@ -45,7 +49,7 @@ def get_server_password():
     return "Aa1!%s" % secrets.token_hex(12)
 
 
-def wait_command(command_id):
+def wait_command(command_id, ignore_error=True):
     print("Waiting for command_id to complete %s" % command_id)
     wait_poll_interval_seconds = 2
     wait_timeout_seconds = 1200
@@ -65,7 +69,11 @@ def wait_command(command_id):
         if status == "complete":
             return command
         elif status == "error":
-            raise Exception("Command failed: " + command.get("log"))
+            if ignore_error:
+                print("WARNING! Command failed, but will continue anyway.\n%s" % command)
+                return command
+            else:
+                raise WaitCommandErrorException("Command failed.\n%s" % command)
 
 
 def get_command_status(command_id):
@@ -101,7 +109,7 @@ def create_fixture_server(title, env_var_prefix, poweronaftercreate="yes", wait=
         print("%s create response: %s" % (title, res))
         command_id = int(res[0])
         if wait:
-            wait_command(command_id)
+            wait_command(command_id, ignore_error=False)
             print("%s created" % title)
     return create_server, {"name": name, "password": password, "create_request_data": create_request_data, "command_id": command_id}
 
