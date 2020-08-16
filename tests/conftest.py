@@ -5,8 +5,13 @@ import requests
 import tempfile
 import subprocess
 import json
+import pexpect
 from ruamel import yaml
 from .common import terminate_fixture_server, create_fixture_server, wait_command
+
+
+class CloudcliFailedException(Exception):
+    pass
 
 
 @pytest.fixture(scope="session")
@@ -23,6 +28,14 @@ def session_server_powered_off():
     yield server
     if is_created_server:
         terminate_fixture_server("powered off session server", "SESSION_SERVER_POWERED_OFF", server)
+
+
+@pytest.fixture(scope="session")
+def session_server_sshkey():
+    is_created_server, server = create_fixture_server("sshkey session server", "SESSION_SERVER_SSHKEY", sshkey=True)
+    yield server
+    if is_created_server:
+        terminate_fixture_server("sshkey session server", "SESSION_SERVER_SSHKEY", server)
 
 
 @pytest.fixture()
@@ -88,27 +101,38 @@ def test_network():
     yield {"id": id, "name": name, "vlanId": vlanId, "subnetId": subnetId, "availableIps": availableIps, "randomIp": random.choice(availableIps)}
 
 
+def init_cloudcli_binary(tmpdir):
+    if os.environ.get("CLOUDCLI_BINARY"):
+        cloudcli_binary = os.environ["CLOUDCLI_BINARY"]
+    else:
+        subprocess.check_call(["curl", "-so", "cloudcli.tar.gz", "https://cloudcli.cloudwm.com/binaries/latest/cloudcli-linux-amd64.tar.gz"], cwd=tmpdir)
+        subprocess.check_call(["tar", "-xzf", os.path.join(tmpdir, "cloudcli.tar.gz")], cwd=tmpdir)
+        subprocess.check_call(["chmod", "+x", "cloudcli"], cwd=tmpdir)
+        cloudcli_binary = "./cloudcli"
+    if os.environ.get("CLOUDCLI_SCHEMA_FILE"):
+        subprocess.check_call(["ln", "-s", os.environ["CLOUDCLI_SCHEMA_FILE"], os.path.join(tmpdir, ".cloudcli.schema.json")])
+    else:
+        subprocess.check_call([cloudcli_binary, "init", "--no-config"], cwd=tmpdir, env={
+            "HOME": tmpdir,
+            "CLOUDCLI_APICLIENTID": os.environ["KAMATERA_API_CLIENT_ID"],
+            "CLOUDCLI_APISECRET": os.environ["KAMATERA_API_SECRET"],
+            "CLOUDCLI_APISERVER": os.environ["KAMATERA_API_SERVER"],
+        })
+    return cloudcli_binary
+
+
 @pytest.fixture(scope="session")
 def cloudcli():
     with tempfile.TemporaryDirectory() as tmpdir:
-        if os.environ.get("CLOUDCLI_BINARY"):
-            cloudcli_binary = os.environ["CLOUDCLI_BINARY"]
-        else:
-            subprocess.check_call(["curl", "-so", "cloudcli.tar.gz", "https://cloudcli.cloudwm.com/binaries/latest/cloudcli-linux-amd64.tar.gz"], cwd=tmpdir)
-            subprocess.check_call(["tar", "-xzf", os.path.join(tmpdir, "cloudcli.tar.gz")], cwd=tmpdir)
-            subprocess.check_call(["chmod", "+x", "cloudcli"], cwd=tmpdir)
-            cloudcli_binary = "./cloudcli"
-        if os.environ.get("CLOUDCLI_SCHEMA_FILE"):
-            subprocess.check_call(["ln", "-s", os.environ["CLOUDCLI_SCHEMA_FILE"], os.path.join(tmpdir, ".cloudcli.schema.json")])
-        else:
-            subprocess.check_call([cloudcli_binary, "init", "--no-config"], cwd=tmpdir, env={
-                "HOME": tmpdir,
-                "CLOUDCLI_APICLIENTID": os.environ["KAMATERA_API_CLIENT_ID"],
-                "CLOUDCLI_APISECRET": os.environ["KAMATERA_API_SECRET"],
-                "CLOUDCLI_APISERVER": os.environ["KAMATERA_API_SERVER"],
-            })
+        cloudcli_binary = init_cloudcli_binary(tmpdir)
 
-        def _cloudcli(*args):
+        def _cloudcli(*args, ignore_wait_error=True, parse=False):
+            args = list(args)
+            if parse:
+                if "--format" in args:
+                    raise Exception("Cannot specify --format arg with parse=True")
+                else:
+                    args += ["--format", random.choice(("json", "yaml"))]
             try:
                 output = subprocess.check_output([cloudcli_binary, *args], cwd=tmpdir, env={
                     "HOME": tmpdir,
@@ -117,7 +141,11 @@ def cloudcli():
                     "CLOUDCLI_APISERVER": os.environ["KAMATERA_API_SERVER"],
                 }, stderr=subprocess.STDOUT).decode()
             except subprocess.CalledProcessError as exc:
-                raise Exception("cloudcli failed exit code %s: %s" % (exc.returncode, exc.output))
+                if "--wait" in args and ignore_wait_error:
+                    print("WARNING! cloudcli failed but will continue anyway. exit code %s: %s" % (exc.returncode, exc.output))
+                    return None
+                else:
+                    raise CloudcliFailedException("cloudcli failed exit code %s: %s" % (exc.returncode, exc.output))
             if "--format json" in  " ".join(args):
                 output = json.loads(output)
             elif "--format yaml" in " ".join(args):
@@ -125,3 +153,18 @@ def cloudcli():
             return output
 
         yield _cloudcli
+
+@pytest.fixture(scope="session")
+def cloudcli_pexpect():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cloudcli_binary = init_cloudcli_binary(tmpdir)
+
+        def _cloudcli_pexpect(*args):
+            return pexpect.spawn(cloudcli_binary, list(args), cwd=tmpdir, env={
+                "HOME": tmpdir,
+                "CLOUDCLI_APICLIENTID": os.environ["KAMATERA_API_CLIENT_ID"],
+                "CLOUDCLI_APISECRET": os.environ["KAMATERA_API_SECRET"],
+                "CLOUDCLI_APISERVER": os.environ["KAMATERA_API_SERVER"],
+            })
+
+        yield _cloudcli_pexpect

@@ -62,12 +62,13 @@ def test_server_network_operations(temp_server, test_network):
         "connect": mac_address
     })
     command_id = int(res)
-    print("sleeping 5 seconds to ensure connect operation is running before testing existing operation running error")
-    time.sleep(5)
-    with pytest.raises(Exception, match="Existing operation is currently running"):
-        cloudcli_server_request("/server/network", method="POST", json={
-            "name": temp_server["name"],
-        })
+    # TODO: figure out how to reliably test this condition as the time until operation starts and ends is not reliable
+    # print("sleeping 5 seconds to ensure connect operation is running before testing existing operation running error")
+    # time.sleep(5)
+    # with pytest.raises(Exception, match="Existing operation is currently running"):
+    #     cloudcli_server_request("/server/network", method="POST", json={
+    #         "name": temp_server["name"],
+    #     })
     wait_command(command_id)
     res = cloudcli_server_request("/server/network", method="POST", json={
         "name": temp_server["name"]

@@ -11,6 +11,10 @@ class WaitCommandErrorException(Exception):
     pass
 
 
+class WaitResFailedException(Exception):
+    pass
+
+
 DEFAULT_FIXTURE_SERVER = {
     "datacenter": "IL",
     "image": "ubuntu_server_18.04_64-bit",
@@ -84,22 +88,29 @@ def get_command_status(command_id):
     return response[0]
 
 
-def create_fixture_server(title, env_var_prefix, poweronaftercreate="yes", wait=True):
-    if os.environ.get("%s_NAME" % env_var_prefix) and os.environ.get("%s_PASSWORD" % env_var_prefix):
+def create_fixture_server(title, env_var_prefix, poweronaftercreate="yes", wait=True, sshkey=False):
+    if os.environ.get("%s_NAME" % env_var_prefix):
         name = os.environ["%s_NAME" % env_var_prefix]
         print("Using existing %s %s" % (title, name))
-        password = os.environ["%s_PASSWORD" % env_var_prefix]
+        password = os.environ["%s_PASSWORD" % env_var_prefix] if not sshkey else ""
         create_server = False
     else:
         name = get_server_name()
         print("Creating %s %s" % (title, name))
-        password = get_server_password()
+        password = get_server_password() if not sshkey else ""
         create_server = True
+    if sshkey:
+        with open(os.environ["TESTING_SSHKEY_PATH"] + ".pub") as f:
+            sshkey = f.read()
+        private_sshkey_path = os.environ["TESTING_SSHKEY_PATH"]
+    else:
+        sshkey = ""
+        private_sshkey_path = ""
     create_request_data = {
         "name": name,
         "password": password,
         "passwordValidate": password,
-        "ssh-key": "",
+        "ssh-key": sshkey,
         **DEFAULT_FIXTURE_SERVER,
         "poweronaftercreate": poweronaftercreate,
     }
@@ -111,7 +122,10 @@ def create_fixture_server(title, env_var_prefix, poweronaftercreate="yes", wait=
         if wait:
             wait_command(command_id, ignore_error=False)
             print("%s created" % title)
-    return create_server, {"name": name, "password": password, "create_request_data": create_request_data, "command_id": command_id}
+    return create_server, {
+        "name": name, "password": password, "create_request_data": create_request_data, "command_id": command_id,
+        "private_sshkey_path": private_sshkey_path
+    }
 
 
 def terminate_fixture_server(title, env_var_prefix, server):
@@ -139,12 +153,22 @@ def assert_only_one_server(servers, path, extra_json=None):
         })
 
 
+def assert_only_one_server_cloudcli(servers, cloudcli, args):
+    with pytest.raises(Exception, match="Too many matching servers"):
+        cloudcli(*args, "--name", "|".join([server["name"] for server in servers]))
+
+
 def assert_no_matching_servers(path, extra_json=None):
     with pytest.raises(Exception, match="No servers found"):
         cloudcli_server_request(path, method="POST", json={
             "name": "__non_existent_server_name__",
             **(extra_json if extra_json else {})
         })
+
+
+def assert_no_matching_servers_cloudcli(cloudcli, args):
+    with pytest.raises(Exception, match="No servers found"):
+        cloudcli(*args, "--name", "__non_existent_server_name__")
 
 
 def get_server_id(server):
@@ -170,3 +194,12 @@ def assert_server_ssh(server):
     ssh_client.connect(server_external_ip, username="root", password=server["password"])
     assert ssh_client.exec_command("pwd")[1].read() == b'/root\n'
     return server_id, server_external_ip
+
+
+def wait_for_res(get_res, assert_res):
+    for _ in [1, 2, 3, 4, 5]:
+        res = get_res()
+        if assert_res(res):
+            return res
+        time.sleep(3)
+    raise WaitResFailedException()

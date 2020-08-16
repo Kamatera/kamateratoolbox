@@ -3,11 +3,11 @@ from ..common import cloudcli_server_request, assert_only_one_server, assert_no_
 
 
 def test_server_history_only_one_server(session_server_powered_on, session_server_powered_off):
-    assert_only_one_server([session_server_powered_on, session_server_powered_off], "/server/description")
+    assert_only_one_server([session_server_powered_on, session_server_powered_off], "/server/history")
 
 
 def test_server_history_no_matching_servers():
-    assert_no_matching_servers("/server/description")
+    assert_no_matching_servers("/server/history")
 
 
 def test_server_history(temp_server):
