@@ -79,17 +79,29 @@ def wait_command(command_id, ignore_error=True):
                 )
         time.sleep(wait_poll_interval_seconds)
         command = get_command_status(command_id)
-        if i % 10 == 0:
+        printed_command = False
+        if i in [1, 2, 3, 4, 5] or i % 10 == 0:
+            printed_command = True
             print(command)
         status = command.get("status")
         if status == "complete":
+            if not printed_command:
+                print(command)
+            print("command status == complete")
             return command
         elif status == "error":
+            if not printed_command:
+                print(command)
+            print("command status == error")
             if ignore_error:
                 print("WARNING! Command failed, but will continue anyway.\n%s" % command)
                 return command
             else:
                 raise WaitCommandErrorException("Command failed.\n%s" % command)
+        elif status and status != "progress":
+            if not printed_command:
+                print(command)
+            print("command status == %s" % status)
 
 
 def wait_command_cloudcli(cloudcli, command_id, ignore_error=True):

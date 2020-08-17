@@ -40,13 +40,14 @@ def test_server_network_operations(cloudcli, temp_server, test_network):
     assert len(res) == 1
     mac_address = res[0]["mac"]
     print("mac address = %s" % mac_address)
-    print("disconnect network")
-    cloudcli("server", "network", "--name", temp_server["name"], "--disconnect", mac_address, "--wait")
+    # print("disconnect network")
+    # cloudcli("server", "network", "--name", temp_server["name"], "--disconnect", mac_address, "--wait")
     res = cloudcli("server", "network", "--name", temp_server["name"], parse=True)
     assert len(res) == 1
     assert res[0]["connected"] == False
     print("connect network")
     res = cloudcli("server", "network", "--name", temp_server["name"], "--connect", mac_address, "--format", "yaml")
+    print("connect network res: '%s'" % res)
     command_id = int(res)
     # TODO: figure out how to reliably test this condition as the time until operation starts and ends is not reliable
     # print("sleeping 3 seconds to ensure connect operation is running before testing existing operation running error")

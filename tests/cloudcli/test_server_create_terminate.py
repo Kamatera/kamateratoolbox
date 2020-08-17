@@ -6,14 +6,12 @@ from ..common import cloudcli_server_request, get_server_name
 def test_server_create_terminate_sshkey_tags_script_userdata(cloudcli):
     name = get_server_name()
     print("Creating server with sshkey %s" % name)
-    with open(os.environ["TESTING_SSHKEY_PATH"] + ".pub") as f:
-        sshkey = f.read()
     try:
         cloudcli(
             "server", "create",
             "--name", name,
             "--password", "",
-            "--ssh-key", sshkey,
+            "--ssh-key", os.environ["TESTING_SSHKEY_PATH"] + ".pub",
             "--datacenter", "IL",
             "--image", "ubuntu_server_18.04_64-bit",
             "--cpu", "1A",
