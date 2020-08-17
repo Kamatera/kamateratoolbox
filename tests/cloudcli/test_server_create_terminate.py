@@ -22,7 +22,7 @@ def test_server_create_terminate_sshkey_tags_script_userdata(cloudcli):
             "--dailybackup", "no",
             "--managed", "no",
             "--network", "name=wan,ip=auto",
-            "--quantity", 1,
+            "--quantity", "1",
             "--billingcycle", "hourly",
             "--monthlypackage", "",
             "--poweronaftercreate", "yes",

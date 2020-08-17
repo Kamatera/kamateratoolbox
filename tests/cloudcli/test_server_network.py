@@ -1,6 +1,6 @@
 import pytest
 import time
-from ..common import assert_only_one_server_cloudcli, assert_no_matching_servers_cloudcli, get_server_id, wait_for_res
+from ..common import assert_only_one_server_cloudcli, assert_no_matching_servers_cloudcli, get_server_id, wait_for_res, wait_command_cloudcli
 
 
 def test_server_network_only_one_server(cloudcli, session_server_powered_on, session_server_powered_off):
@@ -53,7 +53,7 @@ def test_server_network_operations(cloudcli, temp_server, test_network):
     # time.sleep(3)
     # with pytest.raises(Exception, match="Existing operation is currently running"):
     #     cloudcli("server", "network", "--name", temp_server["name"])
-    cloudcli("queue", "detail", "--id", str(command_id), "--wait")
+    wait_command_cloudcli(cloudcli, command_id)
     res = cloudcli("server", "network", "--name", temp_server["name"], parse=True)
     assert len(res) == 1
     assert res[0]["connected"] == True

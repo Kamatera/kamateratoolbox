@@ -7,7 +7,7 @@ import subprocess
 import json
 import pexpect
 from ruamel import yaml
-from .common import terminate_fixture_server, create_fixture_server, wait_command
+from .common import terminate_fixture_server, create_fixture_server, wait_command, cloudcli_server_request, wait_for_res
 
 
 class CloudcliFailedException(Exception):
@@ -60,6 +60,10 @@ def temp_servers_factory():
             for server in servers.values():
                 if server["server"]["command_id"]:
                     wait_command(server["server"]["command_id"])
+                    wait_for_res(
+                        lambda: cloudcli_server_request("/service/server/info", method="POST", json={"name": server["server"]["name"], "allow-no-servers": "yes"}),
+                        lambda res: len(res) > 0
+                    )
 
     yield _temp_servers_factory
     for server_num, server in servers.items():
@@ -142,10 +146,10 @@ def cloudcli():
                 }, stderr=subprocess.STDOUT).decode()
             except subprocess.CalledProcessError as exc:
                 if "--wait" in args and ignore_wait_error:
-                    print("WARNING! cloudcli failed but will continue anyway. exit code %s: %s" % (exc.returncode, exc.output))
+                    print("WARNING! cloudcli failed but will continue anyway. exit code %s\n%s\n%s" % (exc.returncode, exc.output, exc.stderr))
                     return None
                 else:
-                    raise CloudcliFailedException("cloudcli failed exit code %s: %s" % (exc.returncode, exc.output))
+                    raise CloudcliFailedException("cloudcli failed exit code %s\n%s\n%s" % (exc.returncode, exc.output, exc.stderr))
             if "--format json" in  " ".join(args):
                 output = json.loads(output)
             elif "--format yaml" in " ".join(args):

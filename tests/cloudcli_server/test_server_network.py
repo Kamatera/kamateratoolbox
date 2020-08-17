@@ -1,6 +1,6 @@
 import pytest
 import time
-from ..common import cloudcli_server_request, assert_only_one_server, assert_no_matching_servers, wait_command, get_server_id
+from ..common import cloudcli_server_request, assert_only_one_server, assert_no_matching_servers, wait_command, get_server_id, wait_for_res
 
 
 def test_server_network_only_one_server(session_server_powered_on, session_server_powered_off):
@@ -85,8 +85,8 @@ def test_server_network_operations(temp_server, test_network):
     })
     command_id = int(res)
     wait_command(command_id)
-    res = cloudcli_server_request("/server/network", method="POST", json={
-        "name": temp_server["name"]
-    })
+    res = wait_for_res(
+        lambda: cloudcli_server_request("/server/network", method="POST", json={"name": temp_server["name"]}),
+        lambda res: len(res) == 2
+    )
     assert len(res) == 2
-

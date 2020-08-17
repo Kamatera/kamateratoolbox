@@ -5,6 +5,7 @@ import datetime
 import secrets
 import pytest
 import paramiko
+import logging
 
 
 class WaitCommandErrorException(Exception):
@@ -56,19 +57,30 @@ def get_server_password():
 def wait_command(command_id, ignore_error=True):
     print("Waiting for command_id to complete %s" % command_id)
     wait_poll_interval_seconds = 2
-    wait_timeout_seconds = 1200
+    wait_timeout_seconds = 2400
     start_time = datetime.datetime.now()
     max_time = start_time + datetime.timedelta(seconds=wait_timeout_seconds)
     time.sleep(wait_poll_interval_seconds)
+    command = {}
+    i = 0
     while True:
+        i += 1
         if max_time < datetime.datetime.now():
-            raise Exception(
-                "Timeout waiting for command (timeout_seconds={0}, command_id={1})".format(
+            if ignore_error:
+                print("WARNING! Timeout waiting for command (timeout_seconds={0}, command_id={1})".format(
                     str(wait_timeout_seconds), str(command_id)
+                ))
+                return command
+            else:
+                raise Exception(
+                    "Timeout waiting for command (timeout_seconds={0}, command_id={1})".format(
+                        str(wait_timeout_seconds), str(command_id)
+                    )
                 )
-            )
         time.sleep(wait_poll_interval_seconds)
         command = get_command_status(command_id)
+        if i % 10 == 0:
+            print(command)
         status = command.get("status")
         if status == "complete":
             return command
@@ -78,6 +90,21 @@ def wait_command(command_id, ignore_error=True):
                 return command
             else:
                 raise WaitCommandErrorException("Command failed.\n%s" % command)
+
+
+def wait_command_cloudcli(cloudcli, command_id, ignore_error=True):
+    failed = False
+    try:
+        cloudcli("queue", "detail", "--id", str(command_id), "--wait", ignore_wait_error=False)
+    except Exception:
+        failed = True
+    if failed:
+        try:
+            print(cloudcli("queue", "detail", "--id", str(command_id), "--format", "json"))
+        except Exception:
+            pass
+        if not ignore_error:
+            raise Exception("wait_command_cloudcli failed for command_id %s" % command_id)
 
 
 def get_command_status(command_id):
@@ -120,7 +147,11 @@ def create_fixture_server(title, env_var_prefix, poweronaftercreate="yes", wait=
         print("%s create response: %s" % (title, res))
         command_id = int(res[0])
         if wait:
-            wait_command(command_id, ignore_error=False)
+            wait_command(command_id)
+            wait_for_res(
+                lambda: cloudcli_server_request("/service/server/info", method="POST", json={"name": name, "allow-no-servers": "yes"}),
+                lambda res: len(res) > 0
+            )
             print("%s created" % title)
     return create_server, {
         "name": name, "password": password, "create_request_data": create_request_data, "command_id": command_id,
@@ -135,14 +166,18 @@ def terminate_fixture_server(title, env_var_prefix, server):
         print("export %s_PASSWORD='%s'" % (env_var_prefix, server["password"]))
     else:
         print("Removing %s %s" % (title, server["name"]))
-        res = cloudcli_server_request("/service/server/terminate", method="POST", json={
-            "name": server["name"],
-            "force": True
-        })
-        print("terminate %s response: %s" % (title, res))
-        # command_id = int(res[0])
-        # wait_command(command_id)
-        # print("%s terminated" % title)
+        for _ in [1, 2, 3, 4, 5]:
+            try:
+                res = cloudcli_server_request("/service/server/terminate", method="POST", json={
+                    "name": server["name"],
+                    "force": True
+                })
+                print("terminate %s response: %s" % (title, res))
+                return
+            except Exception:
+                logging.exception("Terminate server failed, will try again in 10 seconds")
+                time.sleep(10)
+        raise Exception("Failed to terminate server (%s %s)" % (title, server["name"]))
 
 
 def assert_only_one_server(servers, path, extra_json=None):
@@ -189,17 +224,32 @@ def assert_server_ssh(server):
     assert len(server_id) > 10
     assert res[0]["name"] == server["name"]
     server_external_ip = res[0]["externalIp"]
-    ssh_client = paramiko.SSHClient()
-    ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh_client.connect(server_external_ip, username="root", password=server["password"])
-    assert ssh_client.exec_command("pwd")[1].read() == b'/root\n'
-    return server_id, server_external_ip
+    for i in [0, 1, 2, 3, 4, 5]:
+        if i > 0:
+            time.sleep(10)
+            print("Waited %s seconds" % (i * 10))
+        ssh_client = paramiko.SSHClient()
+        ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        failed = False
+        try:
+            ssh_client.connect(server_external_ip, username="root", password=server["password"])
+        except Exception:
+            logging.exception("Failed to get SSH connection")
+            failed = True
+        if failed:
+            print("Waiting for SSH connection (server name: %s)" % server["name"])
+        else:
+            assert ssh_client.exec_command("pwd")[1].read() == b'/root\n'
+            return server_id, server_external_ip
+    raise Exception("Waited too long for SSH (server name: %s)" % server["name"])
 
 
 def wait_for_res(get_res, assert_res):
-    for _ in [1, 2, 3, 4, 5]:
+    for i in [0, 1, 2, 3, 4, 5]:
+        if i > 0:
+            time.sleep(10)
+            print("Waited %s seconds" % (i * 10))
         res = get_res()
         if assert_res(res):
             return res
-        time.sleep(3)
     raise WaitResFailedException()
