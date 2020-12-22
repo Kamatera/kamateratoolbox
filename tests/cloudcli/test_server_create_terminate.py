@@ -1,6 +1,8 @@
 import os
+import pytest
 import paramiko
 from ..common import cloudcli_server_request, get_server_name
+from ..conftest import CloudcliFailedException
 
 
 def test_server_create_terminate_sshkey_tags_script_userdata(cloudcli):
@@ -46,3 +48,30 @@ def test_server_create_terminate_sshkey_tags_script_userdata(cloudcli):
         except Exception:
             pass
         raise
+
+
+def test_server_create_uppercase_network_name(cloudcli, test_network):
+    name = get_server_name()
+    *parts, last_part = test_network['name'].split('-')
+    network_name = '-'.join(parts) + '-' + last_part.capitalize()
+    print("Creating server %s with network %s" % (name, network_name))
+    try:
+        with pytest.raises(CloudcliFailedException):
+            output = cloudcli(
+                "server", "create",
+                "--name", name,
+                "--password", "",
+                "--ssh-key", os.environ["TESTING_SSHKEY_PATH"] + ".pub",
+                "--datacenter", "IL",
+                "--image", "ubuntu_server_18.04_64-bit",
+                "--network", "name=wan",
+                "--network", "name={}".format(network_name),
+                "--wait",
+                ignore_wait_error=False
+            )
+            print(output)
+    finally:
+        try:
+            cloudcli("server", "terminate", "--name", name, "--force", "--wait")
+        except Exception:
+            pass
