@@ -188,3 +188,13 @@ Set env var so the tests use this binary (if you have a local repository clone, 
 ```
 export CLOUDCLI_BINARY=`pwd`/.cloudcli/cloudcli-master/cloudcli
 ```
+
+## Using curl for quick reproduction and debugging
+
+There are some useful Bash scripts which use curl to allow to easily reproduce and debug cloudcli server and related components.
+
+The scripts are under tests/curl, you should run them from the root of the kamateratoolbox directory, for example:
+
+```
+kamateratoolbox$ tests/curl/create_server.sh '{"name": "test1", ...}'
+```
