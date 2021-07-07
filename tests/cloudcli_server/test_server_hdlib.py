@@ -29,6 +29,6 @@ def test_server_hdlib(temp_server):
     res = cloudcli_server_request("/server/hdlib", method="POST", json={
         "name": temp_server["name"],
         "clone": hduuid,
-        "image_name": "clone_of_".format(temp_server["name"])
+        "image-name": "clone_of_{}".format(temp_server["name"])
     })
     wait_command(res)
