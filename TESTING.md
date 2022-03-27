@@ -198,3 +198,7 @@ The scripts are under tests/curl, you should run them from the root of the kamat
 ```
 kamateratoolbox$ tests/curl/create_server.sh '{"name": "test1", ...}'
 ```
+
+## Kamatera API
+
+Scripts to test and debug relevant Kamatera API endpoints which cloudcli-server uses.
