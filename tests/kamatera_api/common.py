@@ -8,9 +8,9 @@ from .config import SERVER_BASE_URL
 def kamatera_api_request(path, ignore_errors=False, **kwargs):
     url = "%s%s" % (SERVER_BASE_URL, path)
     method = kwargs.pop("method", "GET")
-    print(url)
-    print(method)
-    print(kwargs)
+    # print(url)
+    # print(method)
+    # print(kwargs)
     res = requests.request(method=method, url=url, headers={
         "AuthClientId": os.environ["KAMATERA_API_CLIENT_ID"],
         "AuthSecret": os.environ["KAMATERA_API_SECRET"],
@@ -31,7 +31,3 @@ def kamatera_api_request(path, ignore_errors=False, **kwargs):
     else:
         return res_json
 
-
-def assert_str_int(val):
-    assert str(int(val)) == str(val)
-    return int(val)

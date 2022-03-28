@@ -132,6 +132,7 @@ def cloudcli():
 
         yield _cloudcli
 
+
 @pytest.fixture(scope="session")
 def cloudcli_pexpect():
     with tempfile.TemporaryDirectory() as tmpdir:

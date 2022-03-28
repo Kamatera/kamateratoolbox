@@ -32,7 +32,7 @@ DEFAULT_FIXTURE_SERVER = {
 }
 
 
-def cloudcli_server_request(path, **kwargs):
+def cloudcli_server_request(path, ignore_errors=False, **kwargs):
     url = "%s%s" % (os.environ["KAMATERA_API_SERVER"], path)
     method = kwargs.pop("method", "GET")
     res = requests.request(method=method, url=url, headers={
@@ -42,9 +42,15 @@ def cloudcli_server_request(path, **kwargs):
         "Accept": "application/json"
     }, **kwargs)
     if res.status_code != 200:
-        raise Exception(res.json())
+        if ignore_errors:
+            return res.status_code, res.json()
+        else:
+            raise Exception(res.json())
     else:
-        return res.json()
+        if ignore_errors:
+            return 200, res.json()
+        else:
+            return res.json()
 
 
 def get_server_name():
@@ -299,10 +305,14 @@ def create_network(create_name):
     assert len(subnets) == 1
     subnet = subnets[0]
     subnetId = subnet["subnetId"]
-    availableIps = [ip["ip"] for ip in
-                    requests.get("https://console.kamatera.com/svc/networks/ips?subnetId=%s" % subnetId,
-                                 headers=headers).json() if not ip["clearIsEnable"]]
+    ips_json = requests.get("https://console.kamatera.com/svc/networks/ips?subnetId=%s&networkId=%s&datacenter=IL" % (subnetId, vlanId), headers=headers).json()
+    availableIps = [ip["ip"] for ip in ips_json if not ip["clearIsEnable"]]
     return {
         "id": id, "name": name, "vlanId": vlanId, "subnetId": subnetId, "availableIps": availableIps,
         "randomIp": random.choice(availableIps)
     }
+
+
+def assert_str_int(val):
+    assert str(int(val)) == str(val)
+    return int(val)

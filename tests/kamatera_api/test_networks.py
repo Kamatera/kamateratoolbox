@@ -1,4 +1,5 @@
-from .common import kamatera_api_request, assert_str_int
+from .common import kamatera_api_request
+from ..common import assert_str_int
 
 
 def post_create_network(datacenter, name, subnetIp, subnetBit, gateway, dns1, dns2, subnetDescription):
@@ -63,6 +64,13 @@ def put_edit_subnet(datacenter, vlan_id, subnet_id, subnetIp, subnetBit, gateway
         "dns2": dns2,
         "subnetDescription": subnetDescription
     })
+
+
+def get_list_ips(subnetId, networkId, datacenter):
+    assert_str_int(subnetId)
+    assert_str_int(networkId)
+    path = f'/svc/networks/ips?subnetId={subnetId}&networkId={networkId}&datacenter={datacenter.upper()}'
+    return kamatera_api_request(path)
 
 
 def test_create_network():
@@ -147,6 +155,11 @@ def test_create_network():
             assert subnet['gateway'] ==  '172.16.0.2'
             got_subnet = True
     assert got_subnet
+    ips = get_list_ips(subnet_id, vlan_id, datacenter)
+    assert len(ips) == 510
+    ip = ips[0]
+    assert ip['clearIsEnable'] in [True, False]
+    assert ip['ip'].startswith('172.16.0.')
     assert delete_subnet(subnet_id) == {}
     assert delete_subnet(subnet2_id) == {}
     assert delete_network(datacenter, network_id) == {}
