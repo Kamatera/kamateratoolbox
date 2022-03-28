@@ -104,8 +104,11 @@ def cloudcli():
     with tempfile.TemporaryDirectory() as tmpdir:
         cloudcli_binary = init_cloudcli_binary(tmpdir)
 
-        def _cloudcli(*args, ignore_wait_error=True, parse=False):
+        def _cloudcli(*args, ignore_wait_error=True, parse=False, extra_args_dict=None):
             args = list(args)
+            if extra_args_dict:
+                for k, v in extra_args_dict.items():
+                    args += [f'--{k}', v]
             if parse:
                 if "--format" in args:
                     raise Exception("Cannot specify --format arg with parse=True")
