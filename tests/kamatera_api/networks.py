@@ -74,24 +74,26 @@ def test_create_network():
     subnetDescription = 'testing 1 2 3'
     subnetBit = '23'
     subnetIp = '172.16.0.0'
-    assert post_create_network(
+    create_network_res = post_create_network(
         datacenter, network_name,
         subnetIp=subnetIp, subnetBit=subnetBit, gateway=gateway,
         dns1=dns1, dns2=dns2, subnetDescription=subnetDescription
-    ) == {}
+    )
+    assert_str_int(create_network_res['networkId'])
+    assert_str_int(create_network_res['subnetId'])
     networks_list = get_list_networks(datacenter)
     assert_str_int(networks_list['size'])
     assert assert_str_int(networks_list['total']) > 0
     network = networks_list['items'][0]
     assert len(network['ids']) == 1
     network_id = network['ids'][0]
-    assert_str_int(network_id)
     assert len(network['names']) == 1
     lan, number, *name = network['names'][0].split('-')
     assert lan == 'lan'
     assert_str_int(number)
     assert '-'.join(name) == network_name
     vlan_id = assert_str_int(network['vlanId'])
+    assert vlan_id == assert_str_int(create_network_res['networkId'])
     status_code, res = delete_network(datacenter, network_id, ignore_errors=True)
     assert status_code == 500
     assert len(res['errors']) == 1
@@ -110,6 +112,7 @@ def test_create_network():
     assert assert_str_int(subnet['subnetBit']) == int(subnetBit)
     assert subnet['subnetDescription'] == subnetDescription
     subnet_id = assert_str_int(subnet['subnetId'])
+    assert subnet_id == assert_str_int(create_network_res['subnetId'])
     assert subnet['subnetIp'] == subnetIp
     assert subnet['subnetMask'] == '255.255.254.0'
     assert assert_str_int(subnet['total']) == 510
@@ -119,8 +122,11 @@ def test_create_network():
     subnet2_subnetDescription = '2nd subnet'
     subnet2_subnetBit = '26'
     subnet2_subnetIp = '192.168.0.0'
-    assert post_create_subnet(datacenter, vlan_id, subnet2_subnetIp, subnet2_subnetBit,
-                              subnet2_gateway, subnet2_dns1, subnet2_dns2, subnet2_subnetDescription) == {}
+    create_subnet2_res = post_create_subnet(
+        datacenter, vlan_id, subnet2_subnetIp, subnet2_subnetBit,
+        subnet2_gateway, subnet2_dns1, subnet2_dns2, subnet2_subnetDescription
+    )
+    assert_str_int(create_subnet2_res['subnetId'])
     subnets = get_list_subnets(datacenter, vlan_id)
     assert len(subnets['subnets']) == 2
     got_subnet1, got_subnet2, subnet2_id = False, False, None
@@ -130,6 +136,7 @@ def test_create_network():
             got_subnet2 = True
             assert subnet['subnetIp'] == subnet2_subnetIp
             subnet2_id = assert_str_int(subnet['subnetId'])
+            assert subnet2_id == assert_str_int(create_subnet2_res['subnetId'])
         elif subnet['subnetDescription'] == subnetDescription:
             assert not got_subnet1
             got_subnet1 = True

@@ -1,22 +1,27 @@
-import json
 import os
+import json
+
 import requests
 
-from .config import SERVER_BASE_URL
+from .config import SERVER_BASE_URL, KAMATERA_API_DEBUG
 
 
 def kamatera_api_request(path, ignore_errors=False, **kwargs):
     url = "%s%s" % (SERVER_BASE_URL, path)
     method = kwargs.pop("method", "GET")
-    print(url)
-    print(method)
-    print(kwargs)
-    res = requests.request(method=method, url=url, headers={
+    headers = {
         "AuthClientId": os.environ["KAMATERA_API_CLIENT_ID"],
         "AuthSecret": os.environ["KAMATERA_API_SECRET"],
         "Content-Type": "application/json",
         "Accept": "application/json"
-    }, **kwargs)
+    }
+    if KAMATERA_API_DEBUG:
+        print(f'requests kwargs: {json.dumps(kwargs)}')
+        print(f'headers: {json.dumps(headers)}')
+        print(f'{method} {url}')
+    res = requests.request(method=method, url=url, headers=headers, **kwargs)
+    if KAMATERA_API_DEBUG:
+        print(res.text)
     try:
         if res.text:
             res_json = res.json()
