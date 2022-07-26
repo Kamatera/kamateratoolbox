@@ -11,32 +11,50 @@ def test_server_tags_no_matching_servers():
 
 def test_server_tags(temp_server):
     server_id = get_server_id(temp_server)
+
+    # new server: no tags
     res = cloudcli_server_request("/server/tags", method="POST", json={
         "name": temp_server["name"]
     })
-    assert len(res) == 0
+    assert res == []
+
+    # add tag "foo"
     res = cloudcli_server_request("/server/tags", method="POST", json={
         "name": temp_server["name"],
         "add": "foo"
     })
-    assert len(res) == 1
-    assert set(res[0].keys()) == {"server id", "tag name"}
-    assert res[0]["server id"] == server_id
-    assert res[0]["tag name"] == "foo"
+    assert res == [
+        {'server id': server_id, 'tag name': 'foo'}
+    ]
+
+    # add tag "bar"
     res = cloudcli_server_request("/server/tags", method="POST", json={
         "name": temp_server["name"],
         "add": "bar"
     })
     assert len(res) == 2
-    assert set(res[0].keys()) == {"server id", "tag name"}
-    assert res[0]["server id"] == server_id
-    assert res[1]["server id"] == server_id
-    assert set([r["tag name"] for r in res]) == {"foo", "bar"}
+    assert set([r['tag name'] for r in res]) == {"foo", "bar"}
+
+    # remove tag "foo"
     res = cloudcli_server_request("/server/tags", method="POST", json={
         "name": temp_server["name"],
         "remove": "foo"
     })
-    assert len(res) == 1
-    assert set(res[0].keys()) == {"server id", "tag name"}
-    assert res[0]["server id"] == server_id
-    assert res[0]["tag name"] == "bar"
+    assert res == [
+        {'server id': server_id, 'tag name': 'bar'}
+    ]
+
+    # list tags
+    res = cloudcli_server_request("/server/tags", method="POST", json={
+        "name": temp_server["name"]
+    })
+    assert res == [
+        {'server id': server_id, 'tag name': 'bar'}
+    ]
+
+    # remove tag bar
+    res = cloudcli_server_request("/server/tags", method="POST", json={
+        "name": temp_server["name"],
+        "remove": "bar"
+    })
+    assert res == []
