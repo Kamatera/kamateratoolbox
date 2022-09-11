@@ -40,3 +40,10 @@ def kamatera_api_request(path, ignore_errors=False, **kwargs):
 def assert_str_int(val):
     assert str(int(val)) == str(val)
     return int(val)
+
+
+def get_server_id_by_name(name):
+    for server in kamatera_api_request("/service/servers"):
+        if server["name"] == name:
+            return server["id"]
+    raise Exception(f"Server not found: {name}")

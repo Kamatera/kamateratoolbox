@@ -167,7 +167,10 @@ def create_fixture_server(title, env_var_prefix, poweronaftercreate="yes", wait=
             )
             print("%s created" % title)
     return create_server, {
-        "name": name, "password": password, "create_request_data": create_request_data, "command_id": command_id,
+        "name": name,
+        "password": password,
+        "create_request_data": create_request_data,
+        "command_id": command_id,
         "private_sshkey_path": private_sshkey_path
     }
 
