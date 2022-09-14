@@ -1,6 +1,6 @@
 name: CI
 on:
-  push:
+  workflow_dispatch:
 jobs:
   test:
     runs-on: ubuntu-18.04
