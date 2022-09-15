@@ -38,12 +38,16 @@ class EventHandler(watchdog.events.FileSystemEventHandler):
                 self.modified_src_paths.add(event.src_path)
 
 
-def dev():
+def download_calculator_js_php():
     if not os.path.exists(".data/pages/calculator.js.php"):
         res = requests.get(CALCULATOR_JS_PHP_URL)
         res.raise_for_status()
         with open(".data/pages/calculator.js.php", "wb") as f:
             f.write(res.content)
+
+
+def dev():
+    download_calculator_js_php()
     generate("calculator.js.php")
     event_handler = EventHandler()
     observer = watchdog.observers.Observer()
@@ -67,7 +71,11 @@ def main(*args):
     if '--dev' in args:
         dev()
     else:
-        generate()
+        # generate using remote calculator.js.php:
+        # generate()
+        # generate using local calculator.js.php:
+        download_calculator_js_php()
+        generate("calculator.js.php")
 
 
 if __name__ == "__main__":
