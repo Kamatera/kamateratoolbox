@@ -1,0 +1,12 @@
+# Github Pages
+
+The content is generated using Python with Jinja2 templates in `pages-source` directory
+and served via GitHub pages from `pages/` directory.
+
+To generate the content:
+
+* Install requirements: `pip install -r requirements.txt`
+* Generate html for local development and watch for changes `python -m pages_src.generate --dev`
+
+Start a local web server to test by running `python -m http.server -d .data/pages`
+and then visiting `http://localhost:8000`.
