@@ -11,7 +11,7 @@ import watchdog.observers
 CALCULATOR_JS_PHP_URL = "https://console.kamatera.com/info/calculator.js.php"
 
 
-def generate(calculator_js_php_url=CALCULATOR_JS_PHP_URL):
+def generate():
     env = jinja2.Environment(
         loader=jinja2.PackageLoader("pages_src", "templates"),
         autoescape=jinja2.select_autoescape()
@@ -20,7 +20,11 @@ def generate(calculator_js_php_url=CALCULATOR_JS_PHP_URL):
         f.write(env.get_template("index.html").render())
     with open(".data/pages/serverconfiggen.html", "w") as f:
         f.write(env.get_template("serverconfiggen.html").render(
-            calculator_js_php_url=calculator_js_php_url
+            calculator_js_php_url=CALCULATOR_JS_PHP_URL
+        ))
+    with open(".data/pages/serverconfiggen_test.html", "w") as f:
+        f.write(env.get_template("serverconfiggen.html").render(
+            calculator_js_php_url="calculator.js.php"
         ))
     print('OK')
 
@@ -48,7 +52,7 @@ def download_calculator_js_php():
 
 def dev():
     download_calculator_js_php()
-    generate("calculator.js.php")
+    generate()
     event_handler = EventHandler()
     observer = watchdog.observers.Observer()
     observer.schedule(event_handler, path='pages_src', recursive=True)
@@ -60,7 +64,7 @@ def dev():
             if len(event_handler.modified_src_paths) > 0:
                 print(f'Regenerating, changes detected in {event_handler.modified_src_paths}')
                 event_handler.modified_src_paths = set()
-                generate("calculator.js.php")
+                generate()
     except KeyboardInterrupt:
         observer.stop()
     observer.join()
@@ -71,11 +75,8 @@ def main(*args):
     if '--dev' in args:
         dev()
     else:
-        # generate using remote calculator.js.php:
-        # generate()
-        # generate using local calculator.js.php:
         download_calculator_js_php()
-        generate("calculator.js.php")
+        generate()
 
 
 if __name__ == "__main__":
