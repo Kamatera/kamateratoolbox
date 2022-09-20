@@ -213,6 +213,7 @@ window.serverconfiggeninit = function (calculator_js_php_url) {
                 additionalDisk.append($("<option>").attr("value", diskSizeGB).text(diskSizeGB + " GB"));
             })
             $diskscontainer.append(additionalDisk)
+            $(additionalDisk).change(onAnyChange);
             if (nextDiskNum === 4) {
                 $("#additionaldisk").hide();
             }
