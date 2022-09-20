@@ -1,0 +1,8 @@
+cloudcli server create \\
+  --name SERVER_NAME \\
+  --datacenter ${c.datacenter} \\
+  --image ${c.datacenter}:${c.imageId} \\
+  --cpu ${c.cpuCores}${c.cpuType} \\
+  --ram ${c.ram} \\
+  ${c.diskSizes.map(d => "--disk size="+d).join(" ")} \\
+  --billingcycle ${c.billing} ${c.billing === "monthly" ? ("\\\n  --monthlypackage "+c.netpack) : ""}

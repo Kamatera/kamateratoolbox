@@ -1,0 +1,7 @@
+datacenter=${c.datacenter}
+image=${c.datacenter}:${c.imageId}
+cpu=${c.cpuCores}${c.cpuType}
+ramMB=${c.ram}
+diskSizesGB=${c.diskSizes.join(",")}
+billing=${c.billing}
+${c.billing === "monthly" ? ("trafficPackage="+c.netpack) : ""}
