@@ -302,7 +302,7 @@ window.serverconfiggeninit = function (calculator_js_php_url) {
         if (billing === "monthly" && !netpack) {
             return setConfigurationError("Please select a network traffic package");
         }
-        var configformat = $("#configformat").val();
+        var configformat = forceConfigFormat || $("#configformat").val();
         var c = {
             datacenter, imageId, cpuType, cpuCores, diskSizes, ram, billing, netpack
         }
@@ -333,10 +333,18 @@ window.serverconfiggeninit = function (calculator_js_php_url) {
         if (window.localStorage.getItem("cpucores")) $("#" + "cpucores").val(window.localStorage.getItem("cpucores") || "");
         if (window.localStorage.getItem("ram")) $("#" + "ram").val(window.localStorage.getItem("ram") || "");
         if (window.localStorage.getItem("disk1")) $("#" + "disk1").val(window.localStorage.getItem("disk1") || "");
+        $.each([2, 3, 4], function(i, diskNum) {
+            if (window.localStorage.getItem(`disk${diskNum}`)) {
+                addAdditionalDisk();
+                var lastDiskNum = $("#diskscontainer").children().length;
+                $(`#disk${lastDiskNum}`).val(window.localStorage.getItem(`disk${diskNum}`) || "");
+            }
+        })
         updateDisksUi()
         if (window.localStorage.getItem("netpack")) $("#" + "netpack").val(window.localStorage.getItem("netpack") || "");
         if (window.localStorage.getItem("configformat")) $("#" + "configformat").val(window.localStorage.getItem("configformat") || "");
     }
+    var forceConfigFormat = "";
     var initUi = function () {
         $.each(datacenters, function (datacenterId, datacenter) {
             $("#datacenter").append($("<option>").attr("value", datacenterId).text(datacenter.name));
@@ -354,7 +362,6 @@ window.serverconfiggeninit = function (calculator_js_php_url) {
         $.each(diskSizesGB, function (i, diskSizeGB) {
             $("#disk1").append($("<option>").attr("value", diskSizeGB).text("" + diskSizeGB + " GB"));
         })
-        var forceConfigFormat = "";
         $.each(configTemplates, function(configFormat) {
             if (window.location.href.indexOf("configformat=" + configFormat) !== -1) {
                 forceConfigFormat = configFormat;
