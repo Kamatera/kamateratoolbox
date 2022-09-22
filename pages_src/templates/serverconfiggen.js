@@ -318,6 +318,10 @@ window.serverconfiggeninit = function (calculator_js_php_url) {
         }
         updateConfiguration()
     }
+    var clearLocalStorage = function() {
+        window.localStorage.clear();
+        window.location.reload();
+    }
     var setFromLocalstorage = function () {
         if (window.localStorage.getItem("datacenter")) $("#" + "datacenter").val(window.localStorage.getItem("datacenter") || "");
         if (window.localStorage.getItem("imagecategory")) $("#" + "imagecategory").val(window.localStorage.getItem("imagecategory") || "");
@@ -353,6 +357,7 @@ window.serverconfiggeninit = function (calculator_js_php_url) {
         $("#image").change(onImageChange);
         $("select").change(onAnyChange);
         $("#additionaldisk a").click(addAdditionalDisk);
+        $("#clearConfigurations a").click(clearLocalStorage);
         setFromLocalstorage()
         pauseStorage = false;
         onAnyChange();

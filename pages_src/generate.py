@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import json
+import hashlib
 
 import jinja2
 import requests
@@ -12,13 +13,16 @@ import watchdog.observers
 CALCULATOR_JS_PHP_URL = "https://console.kamatera.com/info/calculator.js.php"
 
 
-def generate_template(env, template_filename, target_filename=None, render_kwargs=None):
+def generate_template(env, template_filename, target_filename=None, render_kwargs=None, generate_hash=False):
     if not target_filename:
         target_filename = template_filename
     if not render_kwargs:
         render_kwargs = {}
+    content = env.get_template(template_filename).render(**render_kwargs)
     with open(f".data/pages/{target_filename}", "w") as f:
-        f.write(env.get_template(template_filename).render(**render_kwargs))
+        f.write(content)
+    if generate_hash:
+        return hashlib.sha256(content.encode()).hexdigest()
 
 
 def encode_js_template(s):
@@ -39,20 +43,22 @@ def get_server_config_templates():
     return res
 
 
-def generate():
+def generate(calculator_js_php_hash):
     env = jinja2.Environment(
         loader=jinja2.PackageLoader("pages_src", "templates"),
         autoescape=jinja2.select_autoescape()
     )
     generate_template(env, "index.html")
-    generate_template(env, "serverconfiggen.js", render_kwargs={
+    serverconfiggen_hash = generate_template(env, "serverconfiggen.js", render_kwargs={
         "config_templates_json": json.dumps(get_server_config_templates())
-    })
+    }, generate_hash=True)
     generate_template(env, "serverconfiggen.html", "serverconfiggen.html", {
-        "calculator_js_php_url": "calculator.js.php"
+        "calculator_js_php_url": f"calculator.js.php?h={calculator_js_php_hash}",
+        "serverconfiggen_hash": serverconfiggen_hash,
     })
     generate_template(env, "serverconfiggen.html", "serverconfiggen_test.html", {
-        "calculator_js_php_url": CALCULATOR_JS_PHP_URL
+        "calculator_js_php_url": CALCULATOR_JS_PHP_URL,
+        "serverconfiggen_hash": serverconfiggen_hash,
     })
     print('OK')
 
@@ -76,11 +82,12 @@ def download_calculator_js_php():
     with open(".data/pages/calculator.js.php", "wb") as f:
         f.write(res.content)
         print(f'downloaded {CALCULATOR_JS_PHP_URL} to .data/pages/calculator.js.php ({len(res.content)} bytes)')
+    return hashlib.sha256(res.content).hexdigest()
 
 
 def dev():
-    download_calculator_js_php()
-    generate()
+    calculator_js_php_hash = download_calculator_js_php()
+    generate(calculator_js_php_hash)
     event_handler = EventHandler()
     observer = watchdog.observers.Observer()
     observer.schedule(event_handler, path='pages_src', recursive=True)
@@ -92,7 +99,7 @@ def dev():
             if len(event_handler.modified_src_paths) > 0:
                 print(f'Regenerating, changes detected in {event_handler.modified_src_paths}')
                 event_handler.modified_src_paths = set()
-                generate()
+                generate(calculator_js_php_hash)
     except KeyboardInterrupt:
         observer.stop()
     observer.join()
@@ -103,8 +110,8 @@ def main(*args):
     if '--dev' in args:
         dev()
     else:
-        download_calculator_js_php()
-        generate()
+        calculator_js_php_hash = download_calculator_js_php()
+        generate(calculator_js_php_hash)
 
 
 if __name__ == "__main__":

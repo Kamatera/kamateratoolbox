@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block head %}
   {{ super() }}
-  <script src="serverconfiggen.js"></script>
+  <script src="serverconfiggen.js?h={{ serverconfiggen_hash }}"></script>
   <script>
     serverconfiggeninit("{{ calculator_js_php_url }}")
   </script>
@@ -14,6 +14,9 @@
     <span class="visually-hidden">Loading...</span>
   </div>
   <form class="invisible">
+    <div class="mb-3">
+      <div class="form-text" id="clearConfigurations"><a href="javascript:">Clear Configurations</a></div>
+    </div>
     <div class="mb-3">
       <label for="datacenter" class="form-label">Datacenter</label>
       <select class="form-select" aria-label="Datacenter" id="datacenter">
