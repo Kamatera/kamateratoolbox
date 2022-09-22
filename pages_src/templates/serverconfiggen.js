@@ -354,6 +354,24 @@ window.serverconfiggeninit = function (calculator_js_php_url) {
         $.each(diskSizesGB, function (i, diskSizeGB) {
             $("#disk1").append($("<option>").attr("value", diskSizeGB).text("" + diskSizeGB + " GB"));
         })
+        var forceConfigFormat = "";
+        $.each(configTemplates, function(configFormat) {
+            if (window.location.href.indexOf("configformat=" + configFormat) !== -1) {
+                forceConfigFormat = configFormat;
+            }
+        })
+        if (forceConfigFormat !== "") {
+            $("#forceConfigFormat").html(`<h4 style="color:black;">${forceConfigFormat}</h4> <a href="javascript:">Change configuration format</a>`).removeClass("invisible");
+            $("#configformatcontainer").hide();
+            $("#forceConfigFormat a").click(function() {
+                window.location.href = window.location.href.replace("configformat=" + forceConfigFormat, "configformat=");
+            })
+        } else {
+            $.each(configTemplates, function(configFormat) {
+                if (configFormat === "default") return;
+                $("#configformat").append($("<option>").attr("value", configFormat).text(configFormat));
+            })
+        }
         $("#image").change(onImageChange);
         $("select").change(onAnyChange);
         $("#additionaldisk a").click(addAdditionalDisk);

@@ -79,12 +79,12 @@
     </div>
     <div class="mb-3">
       <label for="configformat" class="form-label">Configuration Format</label>
-      <select class="form-select" aria-label="Configuration Format" id="configformat">
-        <option value="" selected>Choose an output configuration format or keep this option to just show the selected identifiers</option>
-        <option value="cloudcli">Cloudcli</option>
-        <option value="terraform">Terraform</option>
-        <option value="packer">Packer</option>
-      </select>
+      <div class="invisible form-text" id="forceConfigFormat"></div>
+      <div id="configformatcontainer">
+        <select class="form-select" aria-label="Configuration Format" id="configformat">
+          <option value="" selected>Choose an output configuration format or keep this option to just show the selected identifiers</option>
+        </select>
+      </div>
     </div>
     <div class="mb-3">
       <div class="form-text text-danger" id="configurationError"></div>
