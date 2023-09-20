@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
   schedule:
-    - cron: "0 0 * * *"
+    - cron: "31 1 * * *"
 
     # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
@@ -45,3 +45,5 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v1
+      - name: prevent github from disabling the scheduled workflow due to inactivity
+        uses: OriHoch/keepalive-workflow@master
