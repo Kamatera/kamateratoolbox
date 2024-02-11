@@ -2,15 +2,22 @@
 
 [Kamatera Cloud](https://www.kamatera.com/express/compute/) 3rd Party Tools and Integrations
 
+| **Table of Contents**                                           |
+|:-------------------------------------------------------|
+| **🔑 [Getting Kamatera API Keys](#getting-kamatera-api-keys)** |
+| **🌐 [Terraform](#terraform)**                          |
+| **📦 [Packer](#packer)**                                |
+| **🔧 [Apache Libcloud](#apache-libcloud)**              |
+| **⚙️ [Ansible](#ansible)**                              |
+| **🧂 [Salt](#salt)**                                    |
+| **🆘 [Support](#support)**                              |
+
+
 ## Getting Kamatera API keys
 
 All the 3rd party tools and integrations require Kamatera API keys.
 
 You can get the keys from the [Kamatera Console](https://console.kamatera.com/) under API > Keys
-
-## Support
-
-If you have any request, comment or found a bug, please email us: devteam@kamatera.com
 
 ## Terraform
 
@@ -72,3 +79,7 @@ Documentation:
 
 * [Salt Cloud Kamatera module](https://github.com/Kamatera/salt-cloud-module-kamatera/blob/master/README.md)
 * [Using Salt Cloud](https://docs.saltstack.com/en/latest/topics/cloud/index.html)
+
+## Support
+
+If you have any request, comment or found a bug, please email us: devteam@kamatera.com
