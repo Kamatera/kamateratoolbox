@@ -6,11 +6,13 @@
 |:-------------------------------------------------------|
 | **🔑 [Getting Kamatera API Keys](#getting-kamatera-api-keys)** |
 | **🌐 [Terraform](#terraform)**                          |
-| **📦 [Packer](#packer)**                                |
+| **📦 <a href="#user-content-packer">Packer</a>**                                |
 | **🔧 [Apache Libcloud](#apache-libcloud)**              |
 | **⚙️ [Ansible](#ansible)**                              |
 | **🧂 [Salt](#salt)**                                    |
 | **🆘 [Support](#support)**                              |
+
+
 
 
 ## Getting Kamatera API keys
