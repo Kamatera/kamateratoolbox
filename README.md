@@ -2,26 +2,13 @@
 
 [Kamatera Cloud](https://www.kamatera.com/express/compute/) 3rd Party Tools and Integrations
 
-| **Table of Contents**                                           |
-|:-------------------------------------------------------|
-| **🔑 [Getting Kamatera API Keys](#getting-kamatera-api-keys)** |
-| **🌐 [Terraform](#terraform)**                          |
-| **📦 <a href="#user-content-packer">Packer</a>**                                |
-| **🔧 [Apache Libcloud](#apache-libcloud)**              |
-| **⚙️ [Ansible](#ansible)**                              |
-| **🧂 [Salt](#salt)**                                    |
-| **🆘 [Support](#support)**                              |
-
-
-
-
-## Getting Kamatera API keys
+## 🔑 Getting Kamatera API keys
 
 All the 3rd party tools and integrations require Kamatera API keys.
 
 You can get the keys from the [Kamatera Console](https://console.kamatera.com/) under API > Keys
 
-## Terraform
+## 🌐 Terraform
 
 [Terraform](https://www.terraform.io/) is a tool for building, changing, and versioning infrastructure safely and efficiently.
 
@@ -33,7 +20,7 @@ Documentation:
 * [Introduction to Terraform](https://www.terraform.io/intro/index.html)
 
 
-## Packer
+## 📦 Packer
 
 [Packer](https://www.packer.io/) is a tool that standardizes and automates the process of building system and container images across multiple platforms and clouds.
 
@@ -41,7 +28,7 @@ Documentation:
 
 * [Kamatera Packer Integration](https://developer.hashicorp.com/packer/integrations/Kamatera/kamatera/latest)
 
-## Apache Libcloud
+## 🔧 Apache Libcloud
 
 [Libcloud](https://libcloud.readthedocs.io/en/latest/) is a Python library for interacting with 
 many of the popular cloud service providers using a unified API.
@@ -56,7 +43,7 @@ Documentation:
 * [Libcloud Kamatera compute driver](https://libcloud.readthedocs.io/en/latest/compute/drivers/kamatera.html)
 * [Standalone module for Python2 / Libcloud version 2.8.2](https://github.com/Kamatera/libcloud-driver-kamatera/blob/master/README.md)
 
-## Ansible
+## ⚙️ Ansible
 
 [Ansible](https://docs.ansible.com/ansible/latest/user_guide/) delivers simple IT automation that ends 
 repetitive tasks and frees up DevOps teams for more strategic work.
@@ -71,7 +58,7 @@ Documentation:
   * `ansible-doc kamatera.kamatera.kamatera_compute`
   * `ansible-doc kamatera.kamatera.kamatera_compute_options`
 
-## Salt
+## 🧂 Salt
 
 [Salt](https://docs.saltstack.com/en/latest/) is a configuration managemenet and remote execution system.
 
@@ -82,6 +69,6 @@ Documentation:
 * [Salt Cloud Kamatera module](https://github.com/Kamatera/salt-cloud-module-kamatera/blob/master/README.md)
 * [Using Salt Cloud](https://docs.saltstack.com/en/latest/topics/cloud/index.html)
 
-## Support
+## 🆘 Support
 
 If you have any request, comment or found a bug, please email us: devteam@kamatera.com
