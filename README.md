@@ -8,6 +8,30 @@ All the 3rd party tools and integrations require Kamatera API keys.
 
 You can get the keys from the [Kamatera Console](https://console.kamatera.com/) under API > Keys
 
+## Support
+
+If you have any request, comment or found a bug, please email us: devteam@kamatera.com
+
+## Terraform
+
+[Terraform](https://www.terraform.io/) is a tool for building, changing, and versioning infrastructure safely and efficiently.
+
+Kamatera is supported for Terraform version 0.12 or higher via a provider binary.
+
+Documentation:
+
+* [Kamatera Terraform provider](https://github.com/Kamatera/terraform-provider-kamatera/blob/master/README.md)
+* [Introduction to Terraform](https://www.terraform.io/intro/index.html)
+
+
+## Packer
+
+[Packer](https://www.packer.io/) is a tool that standardizes and automates the process of building system and container images across multiple platforms and clouds.
+
+Documentation:
+
+* [Kamatera Packer Integration](https://developer.hashicorp.com/packer/integrations/Kamatera/kamatera/latest)
+
 ## Apache Libcloud
 
 [Libcloud](https://libcloud.readthedocs.io/en/latest/) is a Python library for interacting with 
@@ -48,18 +72,3 @@ Documentation:
 
 * [Salt Cloud Kamatera module](https://github.com/Kamatera/salt-cloud-module-kamatera/blob/master/README.md)
 * [Using Salt Cloud](https://docs.saltstack.com/en/latest/topics/cloud/index.html)
-
-## Terraform
-
-[Terraform](https://www.terraform.io/) is a tool for building, changing, and versioning infrastructure safely and efficiently.
-
-Kamatera is supported for Terraform version 0.12 or higher via a provider binary.
-
-Documentation:
-
-* [Kamatera Terraform provider](https://github.com/Kamatera/terraform-provider-kamatera/blob/master/README.md)
-* [Introduction to Terraform](https://www.terraform.io/intro/index.html)
-
-## Support
-
-If you have any request, comment or found a bug, please email us: devteam@kamatera.com
