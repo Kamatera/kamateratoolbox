@@ -3,13 +3,18 @@
   {{ super() }}
   <script src="serverconfiggen.js?h={{ serverconfiggen_hash }}"></script>
   <script>
-    serverconfiggeninit("{{ calculator_js_php_url }}")
+    serverconfiggeninit("{{ calculator_js_php_url }}", {{ "true" if k8s else "false" }})
   </script>
 {% endblock %}
 {% block body %}
 <div class="container"><div class="row"><div class="col">
-  <h1 class="mt-5">Kamatera Toolbox Server Configuration Generator</h1>
-  <p>Use this tool to generate server configurations for Kamatera drivers and tools.</p>
+  {% if k8s %}
+      <h1 class="mt-5">Kamatera Kubernetes Configuration Generator</h1>
+      <p>Use this tool to generate Kamatera Kubernetes (kconfig) configuration files.</p>
+  {% else %}
+      <h1 class="mt-5">Kamatera Toolbox Server Configuration Generator</h1>
+      <p>Use this tool to generate server configurations for Kamatera drivers and tools.</p>
+  {% endif %}
   <div class="spinner-border" role="status" id="mainloader">
     <span class="visually-hidden">Loading...</span>
   </div>
@@ -23,6 +28,7 @@
         <option value="" selected>Choose a datacenter</option>
       </select>
     </div>
+    {% if not k8s %}
     <div class="mb-3">
       <label for="imagecategory" class="form-label">Image Category</label>
       <select class="form-select" aria-label="Image Category" id="imagecategory">
@@ -36,6 +42,7 @@
       </select>
       <div class="form-text" id="imageDescription"></div>
     </div>
+    {% endif %}
     <div class="mb-3">
       <label for="cputype" class="form-label">CPU Type</label>
       <select class="form-select" aria-label="CPU Type" id="cputype">
@@ -77,6 +84,7 @@
         <option value="" selected>Choose a datacenter to see available network traffic packages</option>
       </select>
     </div>
+    {% if not k8s %}
     <div class="mb-3">
       <label for="configformat" class="form-label">Configuration Format</label>
       <div class="invisible form-text" id="forceConfigFormat"></div>
@@ -86,9 +94,10 @@
         </select>
       </div>
     </div>
+    {% endif %}
     <div class="mb-3">
       <div class="form-text text-danger" id="configurationError"></div>
-      <label for="configuration" class="form-label">Configuration</label>
+      <label for="configuration" class="form-label">{% if k8s %}kconfig.yaml{% else %}Configuration{% endif %}</label>
       <textarea class="form-control" id="configuration" rows="15"></textarea>
     </div>
   </form>

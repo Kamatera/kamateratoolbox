@@ -43,6 +43,16 @@ def get_server_config_templates():
     return res
 
 
+def get_server_config_templates_k8s():
+    res = {}
+    for config_name, config_extension in {
+        'default': 'yaml',
+    }.items():
+        with open(f'pages_src/templates/config_k8s_{config_name}.{config_extension}') as f:
+            res[config_name] = encode_js_template(f.read())
+    return res
+
+
 def generate(calculator_js_php_hash):
     env = jinja2.Environment(
         loader=jinja2.PackageLoader("pages_src", "templates"),
@@ -50,7 +60,8 @@ def generate(calculator_js_php_hash):
     )
     generate_template(env, "index.html")
     serverconfiggen_hash = generate_template(env, "serverconfiggen.js", render_kwargs={
-        "config_templates_json": json.dumps(get_server_config_templates())
+        "config_templates_json": json.dumps(get_server_config_templates()),
+        "config_templates_json_k8s": json.dumps(get_server_config_templates_k8s())
     }, generate_hash=True)
     generate_template(env, "serverconfiggen.html", "serverconfiggen.html", {
         "calculator_js_php_url": f"calculator.js.php?h={calculator_js_php_hash}",
@@ -59,6 +70,11 @@ def generate(calculator_js_php_hash):
     generate_template(env, "serverconfiggen.html", "serverconfiggen_test.html", {
         "calculator_js_php_url": CALCULATOR_JS_PHP_URL,
         "serverconfiggen_hash": serverconfiggen_hash,
+    })
+    generate_template(env, "serverconfiggen.html", "serverconfiggen_k8s.html", {
+        "calculator_js_php_url": f"calculator.js.php?h={calculator_js_php_hash}",
+        "serverconfiggen_hash": serverconfiggen_hash,
+        "k8s": True,
     })
     print('OK')
 

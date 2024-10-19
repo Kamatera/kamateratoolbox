@@ -1,4 +1,4 @@
-window.serverconfiggeninit = function (calculator_js_php_url) {
+window.serverconfiggeninit = function (calculator_js_php_url, k8s) {
     var datacenterNames = {
         "AS": "Asia: China, Hong Kong",
         "CA-TR": "North America: Canada, Toronto",
@@ -20,7 +20,11 @@ window.serverconfiggeninit = function (calculator_js_php_url) {
         D: "Dedicated",
         T: "Burstable"
     };
-    window.configTemplates = {{ config_templates_json }};
+    if (k8s) {
+        window.configTemplates = {{ config_templates_json_k8s }};
+    } else {
+        window.configTemplates = {{ config_templates_json }};
+    }
     window.datacenters = {};
     window.images = {};
     window.imageCategories = {};
@@ -52,15 +56,17 @@ window.serverconfiggeninit = function (calculator_js_php_url) {
             var db = getImageDescription(b).toLowerCase();
             return da < db ? -1 : (da === db ? 0 : 1)
         }), function (i, image) {
-            window.images[image.id] = {
-                description: getImageDescription(image),
-                originalDescriptionHtml: image.description.replace(/\n/g, "<br/>"),
-                imageSizeGB: image.imageSizeGB,
-                minRamMB: image.minRamMB,
-                name: image.name
-            };
-            if (window.imageCategories[image.category] === undefined) window.imageCategories[image.category] = [];
-            window.imageCategories[image.category].push(image.id);
+            if (!k8s) {
+                window.images[image.id] = {
+                    description: getImageDescription(image),
+                    originalDescriptionHtml: image.description.replace(/\n/g, "<br/>"),
+                    imageSizeGB: image.imageSizeGB,
+                    minRamMB: image.minRamMB,
+                    name: image.name
+                };
+                if (window.imageCategories[image.category] === undefined) window.imageCategories[image.category] = [];
+                window.imageCategories[image.category].push(image.id);
+            }
             $.each(image.datacenters, function (i, dc) {
                 if (window.datacenters[dc] === undefined) window.datacenters[dc] = {
                     name: datacenterNames[dc] === undefined ? dc : datacenterNames[dc],
@@ -103,7 +109,7 @@ window.serverconfiggeninit = function (calculator_js_php_url) {
         })
     };
     var updateDatacenterUi = function () {
-        updateImagesUi();
+        if (!k8s) updateImagesUi();
         updateNetPacksUi();
     }
     var updateImagesUi = function () {
@@ -265,9 +271,11 @@ window.serverconfiggeninit = function (calculator_js_php_url) {
         if (!datacenter) {
             return setConfigurationError("Please select a datacenter");
         }
-        var imageId = $("#image").val();
-        if (!imageId) {
-            return setConfigurationError("Please select an image");
+        if (!k8s) {
+            var imageId = $("#image").val();
+            if (!imageId) {
+                return setConfigurationError("Please select an image");
+            }
         }
         var cpuType = $("#cputype").val();
         if (!cpuType) {
@@ -324,10 +332,10 @@ window.serverconfiggeninit = function (calculator_js_php_url) {
     }
     var setFromLocalstorage = function () {
         if (window.localStorage.getItem("datacenter")) $("#" + "datacenter").val(window.localStorage.getItem("datacenter") || "");
-        if (window.localStorage.getItem("imagecategory")) $("#" + "imagecategory").val(window.localStorage.getItem("imagecategory") || "");
+        if (!k8s && window.localStorage.getItem("imagecategory")) $("#" + "imagecategory").val(window.localStorage.getItem("imagecategory") || "");
         if (window.localStorage.getItem("billing")) $("#" + "billing").val(window.localStorage.getItem("billing") || "");
         updateDatacenterUi()
-        if (window.localStorage.getItem("image")) $("#" + "image").val(window.localStorage.getItem("image") || "");
+        if (!k8s && window.localStorage.getItem("image")) $("#" + "image").val(window.localStorage.getItem("image") || "");
         if (window.localStorage.getItem("cputype")) $("#" + "cputype").val(window.localStorage.getItem("cputype") || "");
         updateCpuTypeUi()
         if (window.localStorage.getItem("cpucores")) $("#" + "cpucores").val(window.localStorage.getItem("cpucores") || "");
@@ -350,10 +358,12 @@ window.serverconfiggeninit = function (calculator_js_php_url) {
             $("#datacenter").append($("<option>").attr("value", datacenterId).text(datacenter.name));
         })
         $("#datacenter").change(updateDatacenterUi);
-        $.each(imageCategories, function (imageCategory) {
-            $("#imagecategory").append($("<option>").attr("value", imageCategory).text(imageCategory));
-        })
-        $("#imagecategory").change(updateImagesUi)
+        if (!k8s) {
+            $.each(imageCategories, function (imageCategory) {
+                $("#imagecategory").append($("<option>").attr("value", imageCategory).text(imageCategory));
+            })
+            $("#imagecategory").change(updateImagesUi)
+        }
         $.each(cpuTypes, function (cpuTypeId, cpuType) {
             $("#cputype").append($("<option>").attr("value", cpuTypeId).text(cpuType.name));
         })
@@ -379,7 +389,9 @@ window.serverconfiggeninit = function (calculator_js_php_url) {
                 $("#configformat").append($("<option>").attr("value", configFormat).text(configFormat));
             })
         }
-        $("#image").change(onImageChange);
+        if (!k8s) {
+            $("#image").change(onImageChange);
+        }
         $("select").change(onAnyChange);
         $("#additionaldisk a").click(addAdditionalDisk);
         $("#clearConfigurations a").click(clearLocalStorage);

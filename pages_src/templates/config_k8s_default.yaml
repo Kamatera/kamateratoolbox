@@ -1,0 +1,33 @@
+cluster:
+  name: <CLUSTER_NAME>  # required, used as a prefix for all resources
+  datacenter: "${c.datacenter}"  # required, will be the same for all nodes in the cluster
+  ssh-key:  # required, fill in the private and public keys for the cluster, will be used for ssh access to all nodes
+    private: |
+      -----BEGIN OPENSSH PRIVATE KEY-----
+      ...
+      -----END OPENSSH PRIVATE KEY-----
+    public: |
+      ssh-...
+  private-network:
+    name: lan-...  # required, lan network name, must be created in advance with enough ips for all the nodes in the cluster
+  default-node-config:  # default values for all nodes in the cluster
+    cpu: "${c.cpuCores}${c.cpuType}"
+    ram: "${c.ram}"
+    disk: "${c.diskSizes.join(",")}"
+    billingcycle: "${c.billing}"
+    monthlypackage: "${c.billing === "monthly" ? c.netpack : ""}"
+    # dailybackup: "yes"
+    # managed: "yes"
+  # server: https://1.2.3.4:9345  # optional, in case you want to use a specific server as the main cluster server
+  # token:  # optional, to use as the cluster join token, if not provided will try to get it from controlplane-1 node
+  # controlplane-node-name:  # optional, if you want to specify the controlplane node name otherwise it will look for the first controlplane node
+
+node-pools:
+  # controlplane:  # optional, the controlplane node pool is created anyway, this is only if you want to change the controlplane node config
+  #   nodes: 1  # must always be set to 1 - no support for high availability yet
+  #   default-node-config:  # optional, default values for all nodes in this pool, values here override the global default-node-config
+  worker1:
+    nodes: 3  # required, number of nodes in this node pool
+    # default-node-config:  # optional, default values for all nodes in this pool, values here override the global default-node-config
+  worker2:
+    nodes: [5, 6]  # nodes can also be specified like this to keep specific node numbers, each number is the node number in the pool
