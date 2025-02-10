@@ -39,7 +39,7 @@ jobs:
           pip install -r requirements.txt &&\
           python3 -m pages_src.generate
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v1
+        uses: actions/upload-pages-artifact@v3
         with:
           path: '.data/pages'
       - name: Deploy to GitHub Pages
