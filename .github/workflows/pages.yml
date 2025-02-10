@@ -44,6 +44,6 @@ jobs:
           path: '.data/pages'
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v1
+        uses: actions/deploy-pages@v4
       - name: prevent github from disabling the scheduled workflow due to inactivity
         uses: OriHoch/keepalive-workflow@master
