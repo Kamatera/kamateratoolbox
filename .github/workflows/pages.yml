@@ -17,4 +17,4 @@ jobs:
         with:
           push: true
           file: Dockerfile.pages
-          tags: ghcr.io/kamatera/kamateratoolbox:$GITHUB_SHA
+          tags: ghcr.io/kamatera/kamateratoolbox:${GITHUB_SHA}
