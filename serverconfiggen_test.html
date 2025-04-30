@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-iYQeCzEYFbKjA/T2uDLTpkwGzCiq6soy8tYaI1GyVh/UjpbCx/TYkiZhlZB6+fzT" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/js/bootstrap.bundle.min.js" integrity="sha384-u1OknCvxWvY5kfmNBILK2hRnQC3Pr17a+RTT6rIHI7NnikvbZlHgTPOOmMi466C8" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.1/dist/jquery.min.js"></script>
+    <title>Kamatera Toolbox</title>
+  
+  <script src="serverconfiggen.js?h=129b9ca0c0e41c4726c57f94dbe01c27db74c3c0d115b7ea21cab405601fb38d"></script>
+  <script>
+    serverconfiggeninit("https://console.kamatera.com/info/calculator.js.php", false)
+  </script>
+</head>
+  <body>
+<div class="container"><div class="row"><div class="col">
+  
+      <h1 class="mt-5">Kamatera Toolbox Server Configuration Generator</h1>
+      <p>Use this tool to generate server configurations for Kamatera drivers and tools.</p>
+  
+  <div class="spinner-border" role="status" id="mainloader">
+    <span class="visually-hidden">Loading...</span>
+  </div>
+  <form class="invisible">
+    <div class="mb-3">
+      <div class="form-text" id="clearConfigurations"><a href="javascript:">Clear Configurations</a></div>
+    </div>
+    <div class="mb-3">
+      <label for="datacenter" class="form-label">Datacenter</label>
+      <select class="form-select" aria-label="Datacenter" id="datacenter">
+        <option value="" selected>Choose a datacenter</option>
+      </select>
+    </div>
+    
+    <div class="mb-3">
+      <label for="imagecategory" class="form-label">Image Category</label>
+      <select class="form-select" aria-label="Image Category" id="imagecategory">
+        <option value="" selected>Choose an image category</option>
+      </select>
+    </div>
+    <div class="mb-3">
+      <label for="image" class="form-label">Image</label>
+      <select class="form-select" aria-label="Image" id="image">
+        <option value="" selected>Choose an image category to see available images</option>
+      </select>
+      <div class="form-text" id="imageDescription"></div>
+    </div>
+    
+    <div class="mb-3">
+      <label for="cputype" class="form-label">CPU Type</label>
+      <select class="form-select" aria-label="CPU Type" id="cputype">
+        <option value="" selected>Choose a CPU type</option>
+      </select>
+    </div>
+    <div class="mb-3">
+      <label for="cpucores" class="form-label">CPU Cores</label>
+      <select class="form-select" aria-label="CPU Cores" id="cpucores">
+        <option value="" selected>Choose a CPU type to see available CPU cores</option>
+      </select>
+    </div>
+    <div class="mb-3">
+      <label for="ram" class="form-label">RAM</label>
+      <select class="form-select" aria-label="RAM" id="ram">
+        <option value="" selected>Choose a CPU type to see available RAM options</option>
+      </select>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Disks</label>
+      <div id="diskscontainer">
+        <select class="form-select" aria-label="Primary Disk" id="disk1">
+          <option value="" selected>Choose primary disk size</option>
+        </select>
+      </div>
+      <div class="form-text" id="additionaldisk"><a href="javascript:">Add an additional disk</a></div>
+    </div>
+    <div class="mb-3">
+      <label for="billing" class="form-label">Billing</label>
+      <select class="form-select" aria-label="Billing" id="billing">
+        <option value="" selected>Choose a billing option</option>
+        <option value="hourly">Hourly</option>
+        <option value="monthly">Monthly</option>
+      </select>
+    </div>
+    <div class="mb-3">
+      <label for="netpack" class="form-label">Network Traffic Package</label>
+      <select class="form-select" aria-label="Network Traffic Package" id="netpack">
+        <option value="" selected>Choose a datacenter to see available network traffic packages</option>
+      </select>
+    </div>
+    
+    <div class="mb-3">
+      <label for="configformat" class="form-label">Configuration Format</label>
+      <div class="invisible form-text" id="forceConfigFormat"></div>
+      <div id="configformatcontainer">
+        <select class="form-select" aria-label="Configuration Format" id="configformat">
+          <option value="" selected>Choose an output configuration format or keep this option to just show the selected identifiers</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="mb-3">
+      <div class="form-text text-danger" id="configurationError"></div>
+      <label for="configuration" class="form-label">Configuration</label>
+      <textarea class="form-control" id="configuration" rows="15"></textarea>
+    </div>
+  </form>
+</div></div></div>
+</body>
+</html>
