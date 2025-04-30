@@ -1,9 +1,0 @@
-requests==2.32.3
-ruamel.yaml==0.16.10
-pytest==5.4.3
-paramiko==2.7.1
-pytest-xdist==1.32.0
-pexpect==4.8.0
-Jinja2==3.1.2
-watchdog==2.1.9
-urllib3==2.2.3
