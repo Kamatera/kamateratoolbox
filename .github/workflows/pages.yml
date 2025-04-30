@@ -1,7 +1,5 @@
 on:
   push:
-    branches:
-      - master
 
 jobs:
   buildpush:
@@ -18,3 +16,11 @@ jobs:
           push: true
           file: Dockerfile.pages
           tags: ghcr.io/kamatera/kamateratoolbox:${{ github.sha }}
+          cache-from: ghcr.io/kamatera/kamateratoolbox:latest
+      - if: github.ref == 'refs/heads/master'
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          file: Dockerfile.pages
+          tags: ghcr.io/kamatera/kamateratoolbox:latest
+          cache-from: ghcr.io/kamatera/kamateratoolbox:latest
