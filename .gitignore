@@ -1,8 +1,0 @@
-.idea
-.cloudcli-server
-venv
-__pycache__
-.pytest_cache
-.cloudcli
-.env
-.data
