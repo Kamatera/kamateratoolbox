@@ -20,3 +20,4 @@ jobs:
             ${{ github.ref == 'refs/heads/master' && 'ghcr.io/kamatera/kamateratoolbox:latest' || '' }}
           cache-from: type=registry,ref=ghcr.io/kamatera/kamateratoolbox:latest
           cache-to: type=inline
+
