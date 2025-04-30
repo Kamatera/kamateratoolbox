@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -euxo pipefail
+set -euo pipefail
 
 rm -rf .data/pages
 git clone -b pages https://github.com/Kamatera/kamateratoolbox.git .data/pages
