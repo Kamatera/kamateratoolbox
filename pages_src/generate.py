@@ -53,25 +53,34 @@ def get_server_config_templates_k8s():
     return res
 
 
-def generate(calculator_js_php_hash):
+def generate(calculator_js_php_hash, with_timestamp=False):
     env = jinja2.Environment(
         loader=jinja2.PackageLoader("pages_src", "templates"),
         autoescape=jinja2.select_autoescape()
     )
-    generate_template(env, "index.html")
+    common_render_kwargs = {
+        'html_extra': f'<!-- {time.time()} -->' if with_timestamp else '',
+    }
+    generate_template(env, "index.html", render_kwargs={
+        **common_render_kwargs
+    })
     serverconfiggen_hash = generate_template(env, "serverconfiggen.js", render_kwargs={
+        **common_render_kwargs,
         "config_templates_json": json.dumps(get_server_config_templates()),
         "config_templates_json_k8s": json.dumps(get_server_config_templates_k8s())
     }, generate_hash=True)
     generate_template(env, "serverconfiggen.html", "serverconfiggen.html", {
+        **common_render_kwargs,
         "calculator_js_php_url": f"calculator.js.php?h={calculator_js_php_hash}",
         "serverconfiggen_hash": serverconfiggen_hash,
     })
     generate_template(env, "serverconfiggen.html", "serverconfiggen_test.html", {
+        **common_render_kwargs,
         "calculator_js_php_url": CALCULATOR_JS_PHP_URL,
         "serverconfiggen_hash": serverconfiggen_hash,
     })
     generate_template(env, "serverconfiggen.html", "serverconfiggen_k8s.html", {
+        **common_render_kwargs,
         "calculator_js_php_url": f"calculator.js.php?h={calculator_js_php_hash}",
         "serverconfiggen_hash": serverconfiggen_hash,
         "k8s": True,
@@ -127,7 +136,7 @@ def main(*args):
         dev()
     else:
         calculator_js_php_hash = download_calculator_js_php()
-        generate(calculator_js_php_hash)
+        generate(calculator_js_php_hash, with_timestamp='--with-timestamp' in args)
 
 
 if __name__ == "__main__":

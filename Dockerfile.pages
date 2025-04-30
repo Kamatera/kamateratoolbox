@@ -1,0 +1,19 @@
+ARG BASE_IMAGE=python:3.10
+
+FROM $BASE_IMAGE AS base
+WORKDIR /srv
+RUN curl -LsSf https://astral.sh/uv/0.7.0/install.sh | XDG_BIN_HOME=/usr/local/bin sh
+COPY pyproject.toml uv.lock ./
+RUN uv export --no-dev --no-emit-project > requirements.txt
+
+FROM $BASE_IMAGE
+WORKDIR /srv
+COPY --from=base /srv/requirements.txt ./
+RUN pip install -r requirements.txt
+COPY pyproject.toml ./
+COPY pages_src ./pages_src
+COPY bin ./bin
+RUN pip install -e .
+
+ENV GIT_TERMINAL_PROMPT=0
+EHV PYTHONUNBUFFERED=1
