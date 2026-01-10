@@ -3,6 +3,7 @@ import json
 import os
 import secrets
 import subprocess
+import sys
 import time
 
 import pytest
@@ -11,6 +12,16 @@ import pytest
 RUN_AUTOSCALER_TESTS = os.environ.get("KTBCA_RUN_AUTOSCALER_TESTS") == "yes"
 POLL_SECONDS = 15
 TIMEOUT_SECONDS = 900
+NODEGROUP_NAME = "autoscaler"
+NODEGROUP_MIN_SIZE = 1
+NODEGROUP_MAX_SIZE = 3
+NODEGROUP_CPU = "4B"
+NODEGROUP_RAM_MB = 8192
+NODEGROUP_DISK = "size=100"
+NODE_LABEL_KEY = "role"
+NODE_LABEL_VALUE = NODEGROUP_NAME
+NODE_LABEL_SELECTOR = f"{NODE_LABEL_KEY}={NODE_LABEL_VALUE}"
+WORKLOAD_REPLICAS = 3
 
 
 def kubectl(kubeconfig_path, *args, input_text=None):
@@ -52,6 +63,30 @@ def build_namespace_name():
     return f"ktbca-{suffix}"[:63]
 
 
+def build_name_prefix():
+    suffix = f"{datetime.datetime.now().strftime('%m%d')}{secrets.token_hex(2)}"
+    return f"kca{suffix}"
+
+
+def build_nodegroup_configs():
+    config_lines = [
+        f"min-size={NODEGROUP_MIN_SIZE}",
+        f"max-size={NODEGROUP_MAX_SIZE}",
+        f"cpu={NODEGROUP_CPU}",
+        f"ram={NODEGROUP_RAM_MB}",
+        f"disk={NODEGROUP_DISK}",
+        'template-label="kubernetes.io/os=linux"',
+        f'template-label="{NODE_LABEL_KEY}={NODE_LABEL_VALUE}"',
+    ]
+    return {NODEGROUP_NAME: "\n".join(config_lines)}
+
+
+def build_nodegroup_rke2_extra_config():
+    return {
+        NODEGROUP_NAME: f"""node-label:\n  - {NODE_LABEL_KEY}={NODE_LABEL_VALUE}\n"""
+    }
+
+
 def wait_for_condition(description, condition, timeout_seconds=TIMEOUT_SECONDS):
     start_time = time.time()
     while True:
@@ -62,8 +97,12 @@ def wait_for_condition(description, condition, timeout_seconds=TIMEOUT_SECONDS):
         time.sleep(POLL_SECONDS)
 
 
-def get_ready_node_count(kubeconfig_path):
-    data = json.loads(kubectl(kubeconfig_path, "get", "nodes", "-o", "json"))
+def get_ready_node_count(kubeconfig_path, label_selector=None):
+    args = ["get", "nodes"]
+    if label_selector:
+        args += ["-l", label_selector]
+    args += ["-o", "json"]
+    data = json.loads(kubectl(kubeconfig_path, *args))
     ready_nodes = 0
     for node in data.get("items", []):
         for condition in node.get("status", {}).get("conditions", []):
@@ -111,6 +150,8 @@ spec:
       labels:
         app: autoscaler-load
     spec:
+      nodeSelector:
+        {NODE_LABEL_KEY}: {NODE_LABEL_VALUE}
       containers:
       - name: load
         image: k8s.gcr.io/pause:3.9
@@ -152,23 +193,45 @@ def delete_namespace(kubeconfig_path, namespace):
     )
 
 
+@pytest.fixture(scope="session")
+def autoscaler_cluster():
+    name_prefix = os.environ.get("KTBCA_NAME_PREFIX")
+    if not name_prefix:
+        name_prefix = build_name_prefix()
+        os.environ["KTBCA_NAME_PREFIX"] = name_prefix
+    env = os.environ.copy()
+    env["KTBCA_NAME_PREFIX"] = name_prefix
+    env["KTBCA_NODEGROUP_CONFIGS_JSON"] = json.dumps(build_nodegroup_configs())
+    env["KTBCA_NODEGROUP_RKE2_EXTRA_CONFIG_JSON"] = json.dumps(build_nodegroup_rke2_extra_config())
+    setup_path = os.path.join(os.path.dirname(__file__), "setup.py")
+    subprocess.check_call([sys.executable, setup_path], env=env)
+    kubeconfig_path = find_kubeconfig_path()
+    wait_for_condition(
+        "autoscaler nodes to be ready",
+        lambda: get_ready_node_count(kubeconfig_path, NODE_LABEL_SELECTOR) >= NODEGROUP_MIN_SIZE,
+    )
+    return kubeconfig_path
+
+
 @pytest.mark.skipif(
     not RUN_AUTOSCALER_TESTS, reason="set KTBCA_RUN_AUTOSCALER_TESTS=yes to run"
 )
-def test_autoscaler_scale_up():
-    kubeconfig_path = find_kubeconfig_path()
+def test_autoscaler_scale_up(autoscaler_cluster):
+    kubeconfig_path = autoscaler_cluster
     namespace = build_namespace_name()
     kubectl(kubeconfig_path, "create", "namespace", namespace)
     try:
-        baseline_nodes = get_ready_node_count(kubeconfig_path)
-        apply_deployment(kubeconfig_path, namespace, replicas=3)
+        baseline_nodes = get_ready_node_count(kubeconfig_path, NODE_LABEL_SELECTOR)
+        apply_deployment(kubeconfig_path, namespace, replicas=WORKLOAD_REPLICAS)
         wait_for_condition(
             "node count to increase",
-            lambda: get_ready_node_count(kubeconfig_path) > baseline_nodes,
+            lambda: get_ready_node_count(kubeconfig_path, NODE_LABEL_SELECTOR) > baseline_nodes,
         )
         wait_for_condition(
             "pods to be running",
-            lambda: all_pods_running(kubeconfig_path, namespace, expected_replicas=3),
+            lambda: all_pods_running(
+                kubeconfig_path, namespace, expected_replicas=WORKLOAD_REPLICAS
+            ),
         )
     finally:
         delete_namespace(kubeconfig_path, namespace)
@@ -177,18 +240,18 @@ def test_autoscaler_scale_up():
 @pytest.mark.skipif(
     not RUN_AUTOSCALER_TESTS, reason="set KTBCA_RUN_AUTOSCALER_TESTS=yes to run"
 )
-def test_autoscaler_scale_down():
-    kubeconfig_path = find_kubeconfig_path()
+def test_autoscaler_scale_down(autoscaler_cluster):
+    kubeconfig_path = autoscaler_cluster
     namespace = build_namespace_name()
     kubectl(kubeconfig_path, "create", "namespace", namespace)
     try:
-        baseline_nodes = get_ready_node_count(kubeconfig_path)
-        apply_deployment(kubeconfig_path, namespace, replicas=3)
+        baseline_nodes = get_ready_node_count(kubeconfig_path, NODE_LABEL_SELECTOR)
+        apply_deployment(kubeconfig_path, namespace, replicas=WORKLOAD_REPLICAS)
         wait_for_condition(
             "node count to increase",
-            lambda: get_ready_node_count(kubeconfig_path) > baseline_nodes,
+            lambda: get_ready_node_count(kubeconfig_path, NODE_LABEL_SELECTOR) > baseline_nodes,
         )
-        scaled_up_nodes = get_ready_node_count(kubeconfig_path)
+        scaled_up_nodes = get_ready_node_count(kubeconfig_path, NODE_LABEL_SELECTOR)
         scale_deployment(kubeconfig_path, namespace, replicas=0)
         wait_for_condition(
             "pods to be deleted",
@@ -196,7 +259,7 @@ def test_autoscaler_scale_down():
         )
         wait_for_condition(
             "node count to decrease",
-            lambda: get_ready_node_count(kubeconfig_path) < scaled_up_nodes,
+            lambda: get_ready_node_count(kubeconfig_path, NODE_LABEL_SELECTOR) < scaled_up_nodes,
         )
     finally:
         delete_namespace(kubeconfig_path, namespace)

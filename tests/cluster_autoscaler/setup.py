@@ -8,6 +8,17 @@ from dataclasses import dataclass
 import dotenv
 
 
+def load_json_env(var_name):
+    value = os.getenv(var_name)
+    if not value:
+        return {}
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError as exc:
+        raise Exception(f"{var_name} must be valid JSON: {exc}") from exc
+
+
+
 def main():
     dotenv.load_dotenv()
     kamatera_api_client_id = os.getenv("KAMATERA_API_CLIENT_ID")
@@ -21,6 +32,8 @@ def main():
         name_prefix = f'kca{datetime.datetime.now().strftime("%m%d")}{secrets.token_hex(2)}'
     datacenter_id = "US-NY2"
     ssh_pubkeys = subprocess.check_output(["ssh-add", "-L"]).decode().strip()
+    nodegroup_configs = load_json_env("KTBCA_NODEGROUP_CONFIGS_JSON")
+    nodegroup_rke2_extra_config = load_json_env("KTBCA_NODEGROUP_RKE2_EXTRA_CONFIG_JSON")
     tfdir = os.path.join(os.path.dirname(__file__), "..", "..", ".data", "cluster_autoscaler", name_prefix, "terraform")
     os.makedirs(tfdir, exist_ok=existing_name_prefix)
     print(f'name prefix: {name_prefix}')
@@ -70,8 +83,8 @@ def main():
             "cluster_autoscaler_global_config": f'''
 default-ssh-key = {ssh_pubkeys_ini_encoded}
 ''',
-            "cluster_autoscaler_nodegroup_configs": {},
-            "cluster_autoscaler_nodegroup_rke2_extra_config": {}
+            "cluster_autoscaler_nodegroup_configs": nodegroup_configs,
+            "cluster_autoscaler_nodegroup_rke2_extra_config": nodegroup_rke2_extra_config
         }))
     subprocess.check_call(["terraform", "init"], cwd=os.path.join(tfdir, "01-rke2"))
     subprocess.check_call(["terraform", "apply", "-auto-approve"], cwd=os.path.join(tfdir, "01-rke2"))
