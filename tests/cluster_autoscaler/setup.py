@@ -3,7 +3,6 @@ import json
 import secrets
 import datetime
 import subprocess
-from dataclasses import dataclass
 
 import dotenv
 
@@ -18,22 +17,27 @@ def load_json_env(var_name):
         raise Exception(f"{var_name} must be valid JSON: {exc}") from exc
 
 
-
-def main():
-    dotenv.load_dotenv()
-    kamatera_api_client_id = os.getenv("KAMATERA_API_CLIENT_ID")
-    kamatera_api_secret = os.getenv("KAMATERA_API_SECRET")
-    name_prefix = os.getenv("KTBCA_NAME_PREFIX")
+def run_setup(
+    kamatera_api_client_id,
+    kamatera_api_secret,
+    name_prefix=None,
+    nodegroup_configs=None,
+    nodegroup_rke2_extra_config=None,
+    datacenter_id="US-NY2",
+    ssh_pubkeys=None,
+):
     if name_prefix:
         existing_name_prefix = True
-        print('Using existing name prefix from environment variable KTBCA_NAME_PREFIX')
+        print('Using existing name prefix')
     else:
         existing_name_prefix = False
         name_prefix = f'kca{datetime.datetime.now().strftime("%m%d")}{secrets.token_hex(2)}'
-    datacenter_id = "US-NY2"
-    ssh_pubkeys = subprocess.check_output(["ssh-add", "-L"]).decode().strip()
-    nodegroup_configs = load_json_env("KTBCA_NODEGROUP_CONFIGS_JSON")
-    nodegroup_rke2_extra_config = load_json_env("KTBCA_NODEGROUP_RKE2_EXTRA_CONFIG_JSON")
+    if ssh_pubkeys is None:
+        ssh_pubkeys = subprocess.check_output(["ssh-add", "-L"]).decode().strip()
+    if nodegroup_configs is None:
+        nodegroup_configs = {}
+    if nodegroup_rke2_extra_config is None:
+        nodegroup_rke2_extra_config = {}
     tfdir = os.path.join(os.path.dirname(__file__), "..", "..", ".data", "cluster_autoscaler", name_prefix, "terraform")
     os.makedirs(tfdir, exist_ok=existing_name_prefix)
     print(f'name prefix: {name_prefix}')
@@ -83,6 +87,7 @@ def main():
             "cluster_autoscaler_global_config": f'''
 default-ssh-key = {ssh_pubkeys_ini_encoded}
 ''',
+
             "cluster_autoscaler_nodegroup_configs": nodegroup_configs,
             "cluster_autoscaler_nodegroup_rke2_extra_config": nodegroup_rke2_extra_config
         }))
@@ -90,7 +95,27 @@ default-ssh-key = {ssh_pubkeys_ini_encoded}
     subprocess.check_call(["terraform", "apply", "-auto-approve"], cwd=os.path.join(tfdir, "01-rke2"))
     subprocess.check_call(["terraform", "init"], cwd=os.path.join(tfdir, "02-k8s"))
     subprocess.check_call(["terraform", "apply", "-auto-approve"], cwd=os.path.join(tfdir, "02-k8s"))
+    return name_prefix
+
+
+def main():
+    dotenv.load_dotenv()
+    kamatera_api_client_id = os.getenv("KAMATERA_API_CLIENT_ID")
+    kamatera_api_secret = os.getenv("KAMATERA_API_SECRET")
+    if not kamatera_api_client_id or not kamatera_api_secret:
+        raise Exception("KAMATERA_API_CLIENT_ID and KAMATERA_API_SECRET are required")
+    name_prefix = os.getenv("KTBCA_NAME_PREFIX")
+    nodegroup_configs = load_json_env("KTBCA_NODEGROUP_CONFIGS_JSON")
+    nodegroup_rke2_extra_config = load_json_env("KTBCA_NODEGROUP_RKE2_EXTRA_CONFIG_JSON")
+    run_setup(
+        kamatera_api_client_id,
+        kamatera_api_secret,
+        name_prefix=name_prefix,
+        nodegroup_configs=nodegroup_configs,
+        nodegroup_rke2_extra_config=nodegroup_rke2_extra_config,
+    )
 
 
 if __name__ == "__main__":
     main()
+

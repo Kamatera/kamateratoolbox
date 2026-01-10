@@ -3,7 +3,6 @@ import json
 import os
 import secrets
 import subprocess
-import sys
 import time
 
 import pytest
@@ -36,11 +35,12 @@ def kubectl(kubeconfig_path, *args, input_text=None):
     return result.stdout
 
 
-def find_kubeconfig_path():
+def find_kubeconfig_path(name_prefix=None):
     data_dir = os.path.abspath(
         os.path.join(os.path.dirname(__file__), "..", "..", ".data", "cluster_autoscaler")
     )
-    name_prefix = os.environ.get("KTBCA_NAME_PREFIX")
+    if not name_prefix:
+        name_prefix = os.environ.get("KTBCA_NAME_PREFIX")
     if name_prefix:
         kubeconfig_path = os.path.join(data_dir, name_prefix, "terraform", ".kubeconfig")
         if os.path.exists(kubeconfig_path):
@@ -54,7 +54,7 @@ def find_kubeconfig_path():
         if os.path.exists(candidate):
             kubeconfigs.append(candidate)
     if not kubeconfigs:
-        pytest.skip("no kubeconfig files found under cluster_autoscaler data dir")
+        pytest.skip("no kubeconfig files found under cluster autoscaler data dir")
     return max(kubeconfigs, key=os.path.getmtime)
 
 
@@ -195,17 +195,23 @@ def delete_namespace(kubeconfig_path, namespace):
 
 @pytest.fixture(scope="session")
 def autoscaler_cluster():
+    kamatera_api_client_id = os.environ.get("KAMATERA_API_CLIENT_ID")
+    kamatera_api_secret = os.environ.get("KAMATERA_API_SECRET")
+    if not kamatera_api_client_id or not kamatera_api_secret:
+        pytest.skip("KAMATERA_API_CLIENT_ID and KAMATERA_API_SECRET are required")
     name_prefix = os.environ.get("KTBCA_NAME_PREFIX")
     if not name_prefix:
         name_prefix = build_name_prefix()
-        os.environ["KTBCA_NAME_PREFIX"] = name_prefix
-    env = os.environ.copy()
-    env["KTBCA_NAME_PREFIX"] = name_prefix
-    env["KTBCA_NODEGROUP_CONFIGS_JSON"] = json.dumps(build_nodegroup_configs())
-    env["KTBCA_NODEGROUP_RKE2_EXTRA_CONFIG_JSON"] = json.dumps(build_nodegroup_rke2_extra_config())
-    setup_path = os.path.join(os.path.dirname(__file__), "setup.py")
-    subprocess.check_call([sys.executable, setup_path], env=env)
-    kubeconfig_path = find_kubeconfig_path()
+    from . import setup as autoscaler_setup
+
+    name_prefix = autoscaler_setup.run_setup(
+        kamatera_api_client_id,
+        kamatera_api_secret,
+        name_prefix=name_prefix,
+        nodegroup_configs=build_nodegroup_configs(),
+        nodegroup_rke2_extra_config=build_nodegroup_rke2_extra_config(),
+    )
+    kubeconfig_path = find_kubeconfig_path(name_prefix)
     wait_for_condition(
         "autoscaler nodes to be ready",
         lambda: get_ready_node_count(kubeconfig_path, NODE_LABEL_SELECTOR) >= NODEGROUP_MIN_SIZE,
@@ -216,7 +222,7 @@ def autoscaler_cluster():
 @pytest.mark.skipif(
     not RUN_AUTOSCALER_TESTS, reason="set KTBCA_RUN_AUTOSCALER_TESTS=yes to run"
 )
-def test_autoscaler_scale_up(autoscaler_cluster):
+def test_autoscaler_scale_up_down(autoscaler_cluster):
     kubeconfig_path = autoscaler_cluster
     namespace = build_namespace_name()
     kubectl(kubeconfig_path, "create", "namespace", namespace)
@@ -232,24 +238,6 @@ def test_autoscaler_scale_up(autoscaler_cluster):
             lambda: all_pods_running(
                 kubeconfig_path, namespace, expected_replicas=WORKLOAD_REPLICAS
             ),
-        )
-    finally:
-        delete_namespace(kubeconfig_path, namespace)
-
-
-@pytest.mark.skipif(
-    not RUN_AUTOSCALER_TESTS, reason="set KTBCA_RUN_AUTOSCALER_TESTS=yes to run"
-)
-def test_autoscaler_scale_down(autoscaler_cluster):
-    kubeconfig_path = autoscaler_cluster
-    namespace = build_namespace_name()
-    kubectl(kubeconfig_path, "create", "namespace", namespace)
-    try:
-        baseline_nodes = get_ready_node_count(kubeconfig_path, NODE_LABEL_SELECTOR)
-        apply_deployment(kubeconfig_path, namespace, replicas=WORKLOAD_REPLICAS)
-        wait_for_condition(
-            "node count to increase",
-            lambda: get_ready_node_count(kubeconfig_path, NODE_LABEL_SELECTOR) > baseline_nodes,
         )
         scaled_up_nodes = get_ready_node_count(kubeconfig_path, NODE_LABEL_SELECTOR)
         scale_deployment(kubeconfig_path, namespace, replicas=0)
