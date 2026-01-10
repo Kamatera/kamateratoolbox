@@ -26,23 +26,29 @@ def run_setup(
     datacenter_id="US-NY2",
     ssh_pubkeys=None,
 ):
-    if name_prefix:
-        existing_name_prefix = True
-        print('Using existing name prefix')
-    else:
-        existing_name_prefix = False
+    if name_prefix is None:
         name_prefix = f'kca{datetime.datetime.now().strftime("%m%d")}{secrets.token_hex(2)}'
     if ssh_pubkeys is None:
         ssh_pubkeys = subprocess.check_output(["ssh-add", "-L"]).decode().strip()
+    if not ssh_pubkeys:
+        raise Exception("No SSH keys found in ssh-agent; run ssh-add")
     if nodegroup_configs is None:
         nodegroup_configs = {}
     if nodegroup_rke2_extra_config is None:
         nodegroup_rke2_extra_config = {}
     tfdir = os.path.join(os.path.dirname(__file__), "..", "..", ".data", "cluster_autoscaler", name_prefix, "terraform")
-    os.makedirs(tfdir, exist_ok=existing_name_prefix)
+    existing_name_prefix = (
+        os.path.isdir(os.path.join(tfdir, "01-rke2"))
+        and os.path.isdir(os.path.join(tfdir, "02-k8s"))
+    )
+    if existing_name_prefix:
+        print("Using existing name prefix")
+    os.makedirs(tfdir, exist_ok=True)
     print(f'name prefix: {name_prefix}')
     print(f'terraform dir: {tfdir}')
     if not existing_name_prefix:
+        if os.listdir(tfdir):
+            raise Exception(f"Terraform dir not empty at {tfdir}")
         subprocess.check_call([
             "git", "clone", "https://github.com/Kamatera/kamatera-rke2-kubernetes-terraform-example.git", ".",
             "--depth", "1"

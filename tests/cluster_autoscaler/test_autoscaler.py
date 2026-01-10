@@ -154,7 +154,7 @@ spec:
         {NODE_LABEL_KEY}: {NODE_LABEL_VALUE}
       containers:
       - name: load
-        image: k8s.gcr.io/pause:3.9
+        image: registry.k8s.io/pause:3.9
         resources:
           requests:
             cpu: "2000m"
@@ -239,15 +239,14 @@ def test_autoscaler_scale_up_down(autoscaler_cluster):
                 kubeconfig_path, namespace, expected_replicas=WORKLOAD_REPLICAS
             ),
         )
-        scaled_up_nodes = get_ready_node_count(kubeconfig_path, NODE_LABEL_SELECTOR)
         scale_deployment(kubeconfig_path, namespace, replicas=0)
         wait_for_condition(
             "pods to be deleted",
             lambda: no_pods_exist(kubeconfig_path, namespace),
         )
         wait_for_condition(
-            "node count to decrease",
-            lambda: get_ready_node_count(kubeconfig_path, NODE_LABEL_SELECTOR) < scaled_up_nodes,
+            "node count to return to baseline",
+            lambda: get_ready_node_count(kubeconfig_path, NODE_LABEL_SELECTOR) <= baseline_nodes,
         )
     finally:
         delete_namespace(kubeconfig_path, namespace)
