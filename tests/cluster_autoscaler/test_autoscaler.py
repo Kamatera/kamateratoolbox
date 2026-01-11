@@ -6,9 +6,15 @@ import subprocess
 import time
 
 import pytest
+import dotenv
+
+
+dotenv.load_dotenv()
 
 
 RUN_AUTOSCALER_TESTS = os.environ.get("KTBCA_RUN_AUTOSCALER_TESTS") == "yes"
+NAME_PREFIX = os.environ.get("KTBCA_NAME_PREFIX")
+KEEP_CLUSTER = bool(NAME_PREFIX) or os.environ.get("KTBCA_KEEP_CLUSTER") == "yes"
 POLL_SECONDS = 15
 TIMEOUT_SECONDS = 900
 NODEGROUP_NAME = "autoscaler"
@@ -40,7 +46,7 @@ def find_kubeconfig_path(name_prefix=None):
         os.path.join(os.path.dirname(__file__), "..", "..", ".data", "cluster_autoscaler")
     )
     if not name_prefix:
-        name_prefix = os.environ.get("KTBCA_NAME_PREFIX")
+        name_prefix = NAME_PREFIX
     if name_prefix:
         kubeconfig_path = os.path.join(data_dir, name_prefix, "terraform", ".kubeconfig")
         if os.path.exists(kubeconfig_path):
@@ -97,19 +103,21 @@ def wait_for_condition(description, condition, timeout_seconds=TIMEOUT_SECONDS):
         time.sleep(POLL_SECONDS)
 
 
-def get_ready_node_count(kubeconfig_path, label_selector=None):
+def get_node_count(kubeconfig_path, label_selector=None):
     args = ["get", "nodes"]
     if label_selector:
         args += ["-l", label_selector]
     args += ["-o", "json"]
     data = json.loads(kubectl(kubeconfig_path, *args))
+    total_nodes = 0
     ready_nodes = 0
     for node in data.get("items", []):
+        total_nodes += 1
         for condition in node.get("status", {}).get("conditions", []):
             if condition.get("type") == "Ready" and condition.get("status") == "True":
                 ready_nodes += 1
                 break
-    return ready_nodes
+    return total_nodes, ready_nodes
 
 
 def get_pods(kubeconfig_path, namespace):
@@ -193,45 +201,52 @@ def delete_namespace(kubeconfig_path, namespace):
     )
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def autoscaler_cluster():
-    kamatera_api_client_id = os.environ.get("KAMATERA_API_CLIENT_ID")
-    kamatera_api_secret = os.environ.get("KAMATERA_API_SECRET")
-    if not kamatera_api_client_id or not kamatera_api_secret:
-        pytest.skip("KAMATERA_API_CLIENT_ID and KAMATERA_API_SECRET are required")
-    name_prefix = os.environ.get("KTBCA_NAME_PREFIX")
-    if not name_prefix:
-        name_prefix = build_name_prefix()
-    from . import setup as autoscaler_setup
-
-    name_prefix = autoscaler_setup.run_setup(
-        kamatera_api_client_id,
-        kamatera_api_secret,
-        name_prefix=name_prefix,
-        nodegroup_configs=build_nodegroup_configs(),
-        nodegroup_rke2_extra_config=build_nodegroup_rke2_extra_config(),
-    )
-    kubeconfig_path = find_kubeconfig_path(name_prefix)
-    wait_for_condition(
-        "autoscaler nodes to be ready",
-        lambda: get_ready_node_count(kubeconfig_path, NODE_LABEL_SELECTOR) >= NODEGROUP_MIN_SIZE,
-    )
-    return kubeconfig_path
+    kamatera_api_client_id = os.getenv("KAMATERA_API_CLIENT_ID")
+    kamatera_api_secret = os.getenv("KAMATERA_API_SECRET")
+    name_prefix = NAME_PREFIX
+    if name_prefix:
+        kubeconfig_path = find_kubeconfig_path(name_prefix)
+        assert get_node_count(kubeconfig_path) == (1, 1)
+        yield name_prefix, kubeconfig_path
+    else:
+        from . import setup as autoscaler_setup
+        name_prefix = autoscaler_setup.run_setup(
+            kamatera_api_client_id,
+            kamatera_api_secret,
+            nodegroup_configs={},
+            nodegroup_rke2_extra_config={},
+        )
+        try:
+            kubeconfig_path = find_kubeconfig_path(name_prefix)
+            wait_for_condition(
+                "cluster should have a single controlplane node",
+                lambda: get_node_count(kubeconfig_path) == (1, 1),
+            )
+            yield name_prefix, kubeconfig_path
+        finally:
+            if KEEP_CLUSTER:
+                print(f"Keeping cluster with name prefix {name_prefix}")
+            else:
+                autoscaler_setup.destroy(name_prefix)
 
 
 @pytest.mark.skipif(
     not RUN_AUTOSCALER_TESTS, reason="set KTBCA_RUN_AUTOSCALER_TESTS=yes to run"
 )
 def test_autoscaler_scale_up_down(autoscaler_cluster):
-    kubeconfig_path = autoscaler_cluster
+    name_prefix, kubeconfig_path = autoscaler_cluster
+    print("Using cluster with name prefix:", name_prefix)
+    print("Using kubeconfig path:", kubeconfig_path)
     namespace = build_namespace_name()
     kubectl(kubeconfig_path, "create", "namespace", namespace)
     try:
-        baseline_nodes = get_ready_node_count(kubeconfig_path, NODE_LABEL_SELECTOR)
+        _, baseline_nodes = get_node_count(kubeconfig_path, NODE_LABEL_SELECTOR)
         apply_deployment(kubeconfig_path, namespace, replicas=WORKLOAD_REPLICAS)
         wait_for_condition(
             "node count to increase",
-            lambda: get_ready_node_count(kubeconfig_path, NODE_LABEL_SELECTOR) > baseline_nodes,
+            lambda: get_node_count(kubeconfig_path, NODE_LABEL_SELECTOR)[1] > baseline_nodes,
         )
         wait_for_condition(
             "pods to be running",
@@ -246,7 +261,10 @@ def test_autoscaler_scale_up_down(autoscaler_cluster):
         )
         wait_for_condition(
             "node count to return to baseline",
-            lambda: get_ready_node_count(kubeconfig_path, NODE_LABEL_SELECTOR) <= baseline_nodes,
+            lambda: get_node_count(kubeconfig_path, NODE_LABEL_SELECTOR)[1] <= baseline_nodes,
         )
     finally:
-        delete_namespace(kubeconfig_path, namespace)
+        if KEEP_CLUSTER:
+            print(f"Keeping namespace {namespace}")
+        else:
+            delete_namespace(kubeconfig_path, namespace)

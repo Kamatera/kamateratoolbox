@@ -1,5 +1,6 @@
 import os
 import json
+import shutil
 import secrets
 import datetime
 import subprocess
@@ -90,6 +91,7 @@ def run_setup(
         f.write(json.dumps({
             "cluster_autoscaler_kamatera_api_client_id": kamatera_api_client_id,
             "cluster_autoscaler_kamatera_api_secret": kamatera_api_secret,
+            "cluster_autoscaler_image": "ghcr.io/kamatera/kubernetes-autoscaler:v1.32-with-node-template-labels",
             "cluster_autoscaler_global_config": f'''
 default-ssh-key = {ssh_pubkeys_ini_encoded}
 ''',
@@ -102,6 +104,15 @@ default-ssh-key = {ssh_pubkeys_ini_encoded}
     subprocess.check_call(["terraform", "init"], cwd=os.path.join(tfdir, "02-k8s"))
     subprocess.check_call(["terraform", "apply", "-auto-approve"], cwd=os.path.join(tfdir, "02-k8s"))
     return name_prefix
+
+
+def destroy(name_prefix):
+    tfdir = str(os.path.join(os.path.dirname(__file__), "..", "..", ".data", "cluster_autoscaler", name_prefix, "terraform"))
+    if os.path.isdir(os.path.join(tfdir, "02-k8s")):
+        subprocess.check_call(["terraform", "destroy", "-auto-approve"], cwd=os.path.join(tfdir, "02-k8s"))
+    if os.path.isdir(os.path.join(tfdir, "01-rke2")):
+        subprocess.check_call(["terraform", "destroy", "-auto-approve"], cwd=os.path.join(tfdir, "01-rke2"))
+    shutil.rmtree(os.path.join(tfdir, ".."), ignore_errors=True)
 
 
 def main():
