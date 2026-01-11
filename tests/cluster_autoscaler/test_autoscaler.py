@@ -41,10 +41,14 @@ def kubectl(kubeconfig_path, *args, input_text=None):
     return result.stdout
 
 
-def find_kubeconfig_path(name_prefix=None):
-    data_dir = os.path.abspath(
+def get_autoscaler_data_dir():
+    return os.path.abspath(
         os.path.join(os.path.dirname(__file__), "..", "..", ".data", "cluster_autoscaler")
     )
+
+
+def find_kubeconfig_path(name_prefix=None):
+    data_dir = get_autoscaler_data_dir()
     if not name_prefix:
         name_prefix = NAME_PREFIX
     if name_prefix:
@@ -62,6 +66,10 @@ def find_kubeconfig_path(name_prefix=None):
     if not kubeconfigs:
         pytest.skip("no kubeconfig files found under cluster autoscaler data dir")
     return max(kubeconfigs, key=os.path.getmtime)
+
+
+def get_terraform_dir(name_prefix):
+    return os.path.join(get_autoscaler_data_dir(), name_prefix, "terraform")
 
 
 def build_namespace_name():
@@ -91,6 +99,30 @@ def build_nodegroup_rke2_extra_config():
     return {
         NODEGROUP_NAME: f"""node-label:\n  - {NODE_LABEL_KEY}={NODE_LABEL_VALUE}\n"""
     }
+
+
+def load_tfvars(path):
+    with open(path) as tfvars_file:
+        return json.load(tfvars_file)
+
+
+def write_tfvars(path, data):
+    with open(path, "w") as tfvars_file:
+        tfvars_file.write(json.dumps(data))
+
+
+def add_autoscaler_nodegroup(terraform_dir):
+    tfvars_path = os.path.join(terraform_dir, "02-k8s", "ktb.auto.tfvars.json")
+    tfvars = load_tfvars(tfvars_path)
+    tfvars["cluster_autoscaler_nodegroup_configs"] = build_nodegroup_configs()
+    tfvars["cluster_autoscaler_nodegroup_rke2_extra_config"] = (
+        build_nodegroup_rke2_extra_config()
+    )
+    write_tfvars(tfvars_path, tfvars)
+    subprocess.check_call(
+        ["terraform", "apply", "-auto-approve"],
+        cwd=os.path.join(terraform_dir, "02-k8s"),
+    )
 
 
 def wait_for_condition(description, condition, timeout_seconds=TIMEOUT_SECONDS):
@@ -212,6 +244,7 @@ def autoscaler_cluster():
         yield name_prefix, kubeconfig_path
     else:
         from . import setup as autoscaler_setup
+
         name_prefix = autoscaler_setup.run_setup(
             kamatera_api_client_id,
             kamatera_api_secret,
@@ -239,9 +272,16 @@ def test_autoscaler_scale_up_down(autoscaler_cluster):
     name_prefix, kubeconfig_path = autoscaler_cluster
     print("Using cluster with name prefix:", name_prefix)
     print("Using kubeconfig path:", kubeconfig_path)
+    terraform_dir = get_terraform_dir(name_prefix)
     namespace = build_namespace_name()
     kubectl(kubeconfig_path, "create", "namespace", namespace)
     try:
+        add_autoscaler_nodegroup(terraform_dir)
+        wait_for_condition(
+            "autoscaler nodes to be ready",
+            lambda: get_node_count(kubeconfig_path, NODE_LABEL_SELECTOR)[1]
+            >= NODEGROUP_MIN_SIZE,
+        )
         _, baseline_nodes = get_node_count(kubeconfig_path, NODE_LABEL_SELECTOR)
         apply_deployment(kubeconfig_path, namespace, replicas=WORKLOAD_REPLICAS)
         wait_for_condition(
@@ -261,7 +301,8 @@ def test_autoscaler_scale_up_down(autoscaler_cluster):
         )
         wait_for_condition(
             "node count to return to baseline",
-            lambda: get_node_count(kubeconfig_path, NODE_LABEL_SELECTOR)[1] <= baseline_nodes,
+            lambda: get_node_count(kubeconfig_path, NODE_LABEL_SELECTOR)[1]
+            <= baseline_nodes,
         )
     finally:
         if KEEP_CLUSTER:
