@@ -197,8 +197,8 @@ spec:
         image: registry.k8s.io/pause:3.9
         resources:
           requests:
-            cpu: "2000m"
-            memory: "1024Mi"
+            cpu: "3000m"
+            memory: "6000Mi"
 """
     kubectl(kubeconfig_path, "apply", "-f", "-", input_text=manifest)
 
@@ -273,36 +273,55 @@ def test_autoscaler_scale_up_down(autoscaler_cluster):
     print("Using cluster with name prefix:", name_prefix)
     print("Using kubeconfig path:", kubeconfig_path)
     terraform_dir = get_terraform_dir(name_prefix)
-    namespace = build_namespace_name()
+    namespace = "ktbca-autoscaler-up-down"
     kubectl(kubeconfig_path, "create", "namespace", namespace)
     try:
+        wait_for_condition(
+            "autoscaler baseline - single node",
+            lambda: get_node_count(kubeconfig_path) == (1,1),
+        )
         add_autoscaler_nodegroup(terraform_dir)
-        wait_for_condition(
-            "autoscaler nodes to be ready",
-            lambda: get_node_count(kubeconfig_path, NODE_LABEL_SELECTOR)[1]
-            >= NODEGROUP_MIN_SIZE,
-        )
-        _, baseline_nodes = get_node_count(kubeconfig_path, NODE_LABEL_SELECTOR)
-        apply_deployment(kubeconfig_path, namespace, replicas=WORKLOAD_REPLICAS)
-        wait_for_condition(
-            "node count to increase",
-            lambda: get_node_count(kubeconfig_path, NODE_LABEL_SELECTOR)[1] > baseline_nodes,
-        )
+        apply_deployment(kubeconfig_path, namespace, replicas=1)
         wait_for_condition(
             "pods to be running",
             lambda: all_pods_running(
-                kubeconfig_path, namespace, expected_replicas=WORKLOAD_REPLICAS
+                kubeconfig_path, namespace, expected_replicas=1
             ),
+        )
+        wait_for_condition(
+            "1 autoscaler node ready",
+            lambda: get_node_count(kubeconfig_path, NODE_LABEL_SELECTOR) == (1,1),
+        )
+        apply_deployment(kubeconfig_path, namespace, replicas=4)
+        wait_for_condition(
+            "pods to be running",
+            lambda: all_pods_running(
+                kubeconfig_path, namespace, expected_replicas=3
+            ),
+        )
+        wait_for_condition(
+            "3 autoscaler node ready",
+            lambda: get_node_count(kubeconfig_path, NODE_LABEL_SELECTOR) == (3, 3),
+        )
+        scale_deployment(kubeconfig_path, namespace, replicas=2)
+        wait_for_condition(
+            "pods to be running",
+            lambda: all_pods_running(
+                kubeconfig_path, namespace, expected_replicas=1
+            ),
+        )
+        wait_for_condition(
+            "node count down to 2",
+            lambda: get_node_count(kubeconfig_path, NODE_LABEL_SELECTOR) == (2,2),
         )
         scale_deployment(kubeconfig_path, namespace, replicas=0)
         wait_for_condition(
-            "pods to be deleted",
-            lambda: no_pods_exist(kubeconfig_path, namespace),
+            "no pods",
+            lambda: no_pods_exist(kubeconfig_path, namespace)
         )
         wait_for_condition(
-            "node count to return to baseline",
-            lambda: get_node_count(kubeconfig_path, NODE_LABEL_SELECTOR)[1]
-            <= baseline_nodes,
+            "node count down to 1",
+            lambda: get_node_count(kubeconfig_path, NODE_LABEL_SELECTOR) == (1,1),
         )
     finally:
         if KEEP_CLUSTER:
