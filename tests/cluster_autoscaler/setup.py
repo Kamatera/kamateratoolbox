@@ -86,14 +86,14 @@ def run_setup(
                 }
             }
         }))
-    ssh_pubkeys_ini_encoded = ssh_pubkeys.strip().replace("\n", "\n   ")
+    ssh_pubkeys_ini_encoded = ssh_pubkeys.strip().replace("\n", "\\n")
     with open(os.path.join(tfdir, "02-k8s", "ktb.auto.tfvars.json"), "w") as f:
         f.write(json.dumps({
             "cluster_autoscaler_kamatera_api_client_id": kamatera_api_client_id,
             "cluster_autoscaler_kamatera_api_secret": kamatera_api_secret,
             "cluster_autoscaler_image": "ghcr.io/kamatera/kubernetes-autoscaler:v1.32-with-node-template-labels",
             "cluster_autoscaler_global_config": f'''
-default-ssh-key = {ssh_pubkeys_ini_encoded}
+default-ssh-key="{ssh_pubkeys_ini_encoded}"
 ''',
 
             "cluster_autoscaler_nodegroup_configs": nodegroup_configs,
