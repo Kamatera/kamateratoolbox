@@ -113,6 +113,14 @@ def destroy(name_prefix):
     if os.path.isdir(os.path.join(tfdir, "01-rke2")):
         subprocess.check_call(["terraform", "destroy", "-auto-approve"], cwd=os.path.join(tfdir, "01-rke2"))
     shutil.rmtree(os.path.join(tfdir, ".."), ignore_errors=True)
+    kamatera_api_client_id = os.getenv("KAMATERA_API_CLIENT_ID")
+    kamatera_api_secret = os.getenv("KAMATERA_API_SECRET")
+    subprocess.check_call([
+        "cloudcli",
+        "--api-clientid", kamatera_api_client_id,
+        "--api-secret", kamatera_api_secret,
+        "server", "terminate", "--force", "--name", f'{name_prefix}.*'
+    ])
 
 
 def main():

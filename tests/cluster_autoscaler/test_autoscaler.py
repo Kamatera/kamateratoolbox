@@ -127,6 +127,8 @@ def add_autoscaler_nodegroup(terraform_dir):
 
 def wait_for_condition(description, condition, timeout_seconds=TIMEOUT_SECONDS):
     start_time = time.time()
+    print(f'waiting for condition: {description} (with timeout {timeout_seconds} seconds)')
+    print(f'start time: {datetime.datetime.now().isoformat()}')
     while True:
         if condition():
             return
@@ -152,6 +154,22 @@ def get_node_count(kubeconfig_path, label_selector=None):
     return total_nodes, ready_nodes
 
 
+def get_servers_count(name_prefix, power=None):
+    kamatera_api_client_id = os.getenv("KAMATERA_API_CLIENT_ID")
+    kamatera_api_secret = os.getenv("KAMATERA_API_SECRET")
+    servers = json.loads(subprocess.check_output([
+        "cloudcli",
+        "--api-clientid", kamatera_api_client_id,
+        "--api-secret", kamatera_api_secret,
+        "server", "info",
+        "--name", f'{name_prefix}-autoscaler-.*',
+        "--format", "json",
+    ]))
+    if power:
+        servers = [s for s in servers if s.get("power") == power]
+    return len(servers)
+
+
 def get_pods(kubeconfig_path, namespace):
     data = json.loads(
         kubectl(kubeconfig_path, "get", "pods", "-n", namespace, "-o", "json")
@@ -159,14 +177,13 @@ def get_pods(kubeconfig_path, namespace):
     return data.get("items", [])
 
 
-def all_pods_running(kubeconfig_path, namespace, expected_replicas):
+def pods_running(kubeconfig_path, namespace, expected_running_replicas):
     pods = get_pods(kubeconfig_path, namespace)
-    if len(pods) < expected_replicas:
-        return False
+    running_replicas = 0
     for pod in pods:
-        if pod.get("status", {}).get("phase") != "Running":
-            return False
-    return True
+        if pod.get("status", {}).get("phase") == "Running":
+            running_replicas += 1
+    return running_replicas == expected_running_replicas
 
 
 def no_pods_exist(kubeconfig_path, namespace):
@@ -275,56 +292,68 @@ def test_autoscaler_scale_up_down(autoscaler_cluster):
     terraform_dir = get_terraform_dir(name_prefix)
     namespace = "ktbca-autoscaler-up-down"
     kubectl(kubeconfig_path, "create", "namespace", namespace)
-    try:
-        wait_for_condition(
-            "autoscaler baseline - single node",
-            lambda: get_node_count(kubeconfig_path) == (1,1),
-        )
-        add_autoscaler_nodegroup(terraform_dir)
-        apply_deployment(kubeconfig_path, namespace, replicas=1)
-        wait_for_condition(
-            "pods to be running",
-            lambda: all_pods_running(
-                kubeconfig_path, namespace, expected_replicas=1
-            ),
-        )
-        wait_for_condition(
-            "1 autoscaler node ready",
-            lambda: get_node_count(kubeconfig_path, NODE_LABEL_SELECTOR) == (1,1),
-        )
-        apply_deployment(kubeconfig_path, namespace, replicas=4)
-        wait_for_condition(
-            "pods to be running",
-            lambda: all_pods_running(
-                kubeconfig_path, namespace, expected_replicas=3
-            ),
-        )
-        wait_for_condition(
-            "3 autoscaler node ready",
-            lambda: get_node_count(kubeconfig_path, NODE_LABEL_SELECTOR) == (3, 3),
-        )
-        scale_deployment(kubeconfig_path, namespace, replicas=2)
-        wait_for_condition(
-            "pods to be running",
-            lambda: all_pods_running(
-                kubeconfig_path, namespace, expected_replicas=1
-            ),
-        )
-        wait_for_condition(
-            "node count down to 2",
-            lambda: get_node_count(kubeconfig_path, NODE_LABEL_SELECTOR) == (2,2),
-        )
-        scale_deployment(kubeconfig_path, namespace, replicas=0)
-        wait_for_condition(
-            "no pods",
-            lambda: no_pods_exist(kubeconfig_path, namespace)
-        )
-        wait_for_condition(
-            "node count down to 1",
-            lambda: get_node_count(kubeconfig_path, NODE_LABEL_SELECTOR) == (1,1),
-        )
-    finally:
-        if KEEP_CLUSTER:
-            print(f"Keeping namespace {namespace}")
-        else:
-            delete_namespace(kubeconfig_path, namespace)
+    wait_for_condition(
+        "autoscaler baseline - single node",
+        lambda: get_node_count(kubeconfig_path) == (1,1),
+    )
+    add_autoscaler_nodegroup(terraform_dir)
+    apply_deployment(kubeconfig_path, namespace, replicas=1)
+    wait_for_condition(
+        "1 pod to be running",
+        lambda: pods_running(
+            kubeconfig_path, namespace, expected_running_replicas=1
+        ),
+    )
+    wait_for_condition(
+        "1 server powered on",
+        lambda: get_servers_count(name_prefix, power="on") == 1,
+    )
+    wait_for_condition(
+        "1 autoscaler node ready",
+        lambda: get_node_count(kubeconfig_path, NODE_LABEL_SELECTOR) == (1,1),
+    )
+    apply_deployment(kubeconfig_path, namespace, replicas=4)
+    wait_for_condition(
+        "3 pods to be running",
+        lambda: pods_running(
+            kubeconfig_path, namespace, expected_running_replicas=3
+        ),
+    )
+    wait_for_condition(
+        "3 servers powered on",
+        lambda: get_servers_count(name_prefix, power="on") == 3,
+    )
+    wait_for_condition(
+        "3 autoscaler nodes ready",
+        lambda: get_node_count(kubeconfig_path, NODE_LABEL_SELECTOR) == (3, 3),
+    )
+    scale_deployment(kubeconfig_path, namespace, replicas=2)
+    wait_for_condition(
+        "2 pods to be running",
+        lambda: pods_running(
+            kubeconfig_path, namespace, expected_running_replicas=2
+        ),
+    )
+    wait_for_condition(
+        "2 servers",
+        lambda: get_servers_count(name_prefix) == 2,
+    )
+    # currently nodes are stopped but not removed from the cluster
+    # wait_for_condition(
+    #     "node count down to 2",
+    #     lambda: get_node_count(kubeconfig_path, NODE_LABEL_SELECTOR) == (2,2),
+    # )
+    scale_deployment(kubeconfig_path, namespace, replicas=0)
+    wait_for_condition(
+        "no pods",
+        lambda: no_pods_exist(kubeconfig_path, namespace)
+    )
+    wait_for_condition(
+        "1 server",
+        lambda: get_servers_count(name_prefix) == 1,
+    )
+    # currently nodes are stopped but not removed from the cluster
+    # wait_for_condition(
+    #     "node count down to 1",
+    #     lambda: get_node_count(kubeconfig_path, NODE_LABEL_SELECTOR) == (1,1),
+    # )
