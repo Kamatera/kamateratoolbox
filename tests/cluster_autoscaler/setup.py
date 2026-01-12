@@ -30,7 +30,7 @@ def run_setup(
     if name_prefix is None:
         name_prefix = f'kca{datetime.datetime.now().strftime("%m%d")}{secrets.token_hex(2)}'
     if ssh_pubkeys is None:
-        ssh_pubkeys = subprocess.check_output(["ssh-add", "-L"]).decode().strip()
+        ssh_pubkeys = subprocess.check_output(["bash", "-c", "cat ~/.ssh/*.pub"]).decode().strip()
     if not ssh_pubkeys:
         raise Exception("No SSH keys found in ssh-agent; run ssh-add")
     if nodegroup_configs is None:
