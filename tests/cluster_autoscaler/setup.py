@@ -32,9 +32,11 @@ def write_k8s_vars(name_prefix, kamatera_api_client_id, kamatera_api_secret, ssh
             "cluster_autoscaler_global_config": f'''
     default-ssh-key="{ssh_pubkeys_ini_encoded}"
     ''',
-
             "cluster_autoscaler_nodegroup_configs": {},
-            "cluster_autoscaler_nodegroup_rke2_extra_config": {}
+            "cluster_autoscaler_nodegroup_rke2_extra_config": {},
+            "cluster_autoscaler_extra_args": [
+                "--cordon-node-before-terminating",
+            ]
         }))
 
 
