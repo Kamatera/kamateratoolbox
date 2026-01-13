@@ -26,6 +26,8 @@ jobs:
           tar -xvf cloudcli-linux-amd64.tar.gz
           chmod +x cloudcli
           sudo mv cloudcli /usr/local/bin/cloudcli
+      - run: |
+          ssh-keygen -t rsa -b 4096 -N "" -f ~/.ssh/id_rsa
       - env:
           K8S_VERSION: ${{ matrix.k8s_version }}
           KAMATERA_API_CLIENT_ID: ${{ secrets.KAMATERA_API_CLIENT_ID }}
