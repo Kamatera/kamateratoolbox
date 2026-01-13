@@ -3,8 +3,9 @@ import datetime
 import json
 import os
 import secrets
-import shutil
 import subprocess
+import traceback
+import time
 
 import dotenv
 
@@ -133,18 +134,40 @@ def run_setup(
 def destroy(name_prefix):
     tfdir = str(os.path.join(os.path.dirname(__file__), "..", "..", ".data", "cluster_autoscaler", name_prefix, "terraform"))
     if os.path.isdir(os.path.join(tfdir, "02-k8s")):
-        subprocess.check_call(["terraform", "destroy", "-auto-approve"], cwd=os.path.join(tfdir, "02-k8s"))
+        try:
+            subprocess.check_call(["terraform", "destroy", "-auto-approve"], cwd=os.path.join(tfdir, "02-k8s"))
+        except:
+            traceback.print_exc()
+            print("Terraform destroy failed, retrying in 5 minutes")
+            time.sleep(300)
+            subprocess.check_call(["terraform", "destroy", "-auto-approve"], cwd=os.path.join(tfdir, "02-k8s"))
     if os.path.isdir(os.path.join(tfdir, "01-rke2")):
-        subprocess.check_call(["terraform", "destroy", "-auto-approve"], cwd=os.path.join(tfdir, "01-rke2"))
-    shutil.rmtree(os.path.join(tfdir, ".."), ignore_errors=True)
+        try:
+            subprocess.check_call(["terraform", "destroy", "-auto-approve"], cwd=os.path.join(tfdir, "01-rke2"))
+        except:
+            traceback.print_exc()
+            print("Terraform destroy failed, retrying in 5 minutes")
+            time.sleep(300)
+            subprocess.check_call(["terraform", "destroy", "-auto-approve"], cwd=os.path.join(tfdir, "01-rke2"))
     kamatera_api_client_id = os.getenv("KAMATERA_API_CLIENT_ID")
     kamatera_api_secret = os.getenv("KAMATERA_API_SECRET")
-    subprocess.check_call([
-        "cloudcli",
-        "--api-clientid", kamatera_api_client_id,
-        "--api-secret", kamatera_api_secret,
-        "server", "terminate", "--force", "--name", f'{name_prefix}.*'
-    ])
+    try:
+        subprocess.check_call([
+            "cloudcli",
+            "--api-clientid", kamatera_api_client_id,
+            "--api-secret", kamatera_api_secret,
+            "server", "terminate", "--force", "--name", f'{name_prefix}.*'
+        ])
+    except:
+        traceback.print_exc()
+        print("CloudCLI server terminate failed, retrying in 5 minutes")
+        time.sleep(300)
+        subprocess.check_call([
+            "cloudcli",
+            "--api-clientid", kamatera_api_client_id,
+            "--api-secret", kamatera_api_secret,
+            "server", "terminate", "--force", "--name", f'{name_prefix}.*'
+        ])
 
 
 def reset(name_prefix):

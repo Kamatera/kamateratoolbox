@@ -4,6 +4,7 @@ import os
 import secrets
 import subprocess
 import time
+import traceback
 
 import pytest
 import dotenv
@@ -280,6 +281,12 @@ def autoscaler_cluster():
             if KEEP_CLUSTER:
                 print(f"Keeping cluster with name prefix {name_prefix}")
             else:
+                subprocess.call([
+                    "kubectl", "-n", "kube-system", "logs", "deploy/cluster-autoscaler"
+                ], env={
+                    **os.environ,
+                    "KUBECONFIG": kubeconfig_path,
+                })
                 autoscaler_setup.destroy(name_prefix)
 
 

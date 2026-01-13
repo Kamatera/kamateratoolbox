@@ -38,4 +38,4 @@ jobs:
           KTBCA_RUN_AUTOSCALER_TESTS: "yes"
         run: |
           uv sync
-          uv run pytest -svvx tests/cluster_autoscaler
+          uv run python -u -m pytest -vvx --capture=tee-sys tests/cluster_autoscaler
