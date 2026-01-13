@@ -1,0 +1,30 @@
+on:
+  push:
+    branches:
+      - add-cluster-autoscaler-tests
+      - master
+    paths:
+      - .github/workflows/cluster_autoscaler_tests.yaml
+      - tests/cluster_autoscaler/**
+
+jobs:
+  cluster-autoscaler-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        k8s_version:
+          - "1.32"
+          - "1.33"
+          - "1.34"
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+      - env:
+          K8S_VERSION: ${{ matrix.k8s_version }}
+          KAMATERA_API_CLIENT_ID: ${{ secrets.KAMATERA_API_CLIENT_ID }}
+          KAMATERA_API_SECRET: ${{ secrets.KAMATERA_API_SECRET }}
+          KTBCA_RUN_AUTOSCALER_TESTS: "yes"
+        run: |
+          uv sync
+          uv run pytest -svvx tests/cluster_autoscaler

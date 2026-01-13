@@ -24,11 +24,17 @@ def write_k8s_vars(name_prefix, kamatera_api_client_id, kamatera_api_secret, ssh
         ssh_pubkeys = subprocess.check_output(["bash", "-c", "cat ~/.ssh/*.pub"]).decode().strip()
     tfdir = str(os.path.join(os.path.dirname(__file__), "..", "..", ".data", "cluster_autoscaler", name_prefix, "terraform"))
     ssh_pubkeys_ini_encoded = ssh_pubkeys.strip().replace("\n", "\\n")
+    k8s_version = os.getenv("K8S_VERSION")
+    cluster_autoscaler_image = {
+        "1.34": "ghcr.io/kamatera/kubernetes-autoscaler:v1.34",
+        "1.33": "ghcr.io/kamatera/kubernetes-autoscaler:v1.33",
+        "1.32": "ghcr.io/kamatera/kubernetes-autoscaler:v1.32-with-node-template-labels",
+    }[k8s_version]
     with open(os.path.join(tfdir, "02-k8s", "ktb.auto.tfvars.json"), "w") as f:
         f.write(json.dumps({
             "cluster_autoscaler_kamatera_api_client_id": kamatera_api_client_id,
             "cluster_autoscaler_kamatera_api_secret": kamatera_api_secret,
-            "cluster_autoscaler_image": "ghcr.io/kamatera/kubernetes-autoscaler:v1.32-with-node-template-labels",
+            "cluster_autoscaler_image": cluster_autoscaler_image,
             "cluster_autoscaler_global_config": f'''
     default-ssh-key="{ssh_pubkeys_ini_encoded}"
     ''',
@@ -36,6 +42,7 @@ def write_k8s_vars(name_prefix, kamatera_api_client_id, kamatera_api_secret, ssh
             "cluster_autoscaler_nodegroup_rke2_extra_config": {},
             "cluster_autoscaler_extra_args": [
                 "--cordon-node-before-terminating",
+                "--scale-down-unneeded-time=2m",
             ]
         }))
 
@@ -70,6 +77,13 @@ def run_setup(
             "git", "clone", "https://github.com/Kamatera/kamatera-rke2-kubernetes-terraform-example.git", ".",
             "--depth", "1"
         ], cwd=tfdir)
+    k8s_version = os.getenv("K8S_VERSION")
+    rke2_version = {
+        "1.35": "v1.35.0+rke2r1",
+        "1.34": "v1.34.3+rke2r1",
+        "1.33": "v1.33.7+rke2r1",
+        "1.32": "v1.32.11+rke2r1",
+    }[k8s_version]
     with open(os.path.join(tfdir, "01-rke2", "ktb.auto.tfvars.json"), "w") as f:
         f.write(json.dumps({
             "kamatera_api_client_id": kamatera_api_client_id,
@@ -77,6 +91,7 @@ def run_setup(
             "datacenter_id": datacenter_id,
             "name_prefix": name_prefix,
             "ssh_pubkeys": ssh_pubkeys,
+            "rke2_version": rke2_version,
             "servers": {
                 "default": {
                     "billing_cycle": "hourly",
