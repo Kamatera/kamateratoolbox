@@ -268,8 +268,6 @@ def autoscaler_cluster():
         name_prefix = autoscaler_setup.run_setup(
             kamatera_api_client_id,
             kamatera_api_secret,
-            nodegroup_configs={},
-            nodegroup_rke2_extra_config={},
         )
         try:
             kubeconfig_path = find_kubeconfig_path(name_prefix)
