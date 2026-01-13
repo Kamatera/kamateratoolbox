@@ -1,3 +1,4 @@
+import sys
 import datetime
 import json
 import os
@@ -18,12 +19,29 @@ def load_json_env(var_name):
         raise Exception(f"{var_name} must be valid JSON: {exc}") from exc
 
 
+def write_k8s_vars(name_prefix, kamatera_api_client_id, kamatera_api_secret, ssh_pubkeys=None):
+    if not ssh_pubkeys:
+        ssh_pubkeys = subprocess.check_output(["bash", "-c", "cat ~/.ssh/*.pub"]).decode().strip()
+    tfdir = str(os.path.join(os.path.dirname(__file__), "..", "..", ".data", "cluster_autoscaler", name_prefix, "terraform"))
+    ssh_pubkeys_ini_encoded = ssh_pubkeys.strip().replace("\n", "\\n")
+    with open(os.path.join(tfdir, "02-k8s", "ktb.auto.tfvars.json"), "w") as f:
+        f.write(json.dumps({
+            "cluster_autoscaler_kamatera_api_client_id": kamatera_api_client_id,
+            "cluster_autoscaler_kamatera_api_secret": kamatera_api_secret,
+            "cluster_autoscaler_image": "ghcr.io/kamatera/kubernetes-autoscaler:v1.32-with-node-template-labels",
+            "cluster_autoscaler_global_config": f'''
+    default-ssh-key="{ssh_pubkeys_ini_encoded}"
+    ''',
+
+            "cluster_autoscaler_nodegroup_configs": {},
+            "cluster_autoscaler_nodegroup_rke2_extra_config": {}
+        }))
+
+
 def run_setup(
     kamatera_api_client_id,
     kamatera_api_secret,
     name_prefix=None,
-    nodegroup_configs=None,
-    nodegroup_rke2_extra_config=None,
     datacenter_id="US-NY2",
     ssh_pubkeys=None,
 ):
@@ -33,10 +51,6 @@ def run_setup(
         ssh_pubkeys = subprocess.check_output(["bash", "-c", "cat ~/.ssh/*.pub"]).decode().strip()
     if not ssh_pubkeys:
         raise Exception("No SSH keys found in ssh-agent; run ssh-add")
-    if nodegroup_configs is None:
-        nodegroup_configs = {}
-    if nodegroup_rke2_extra_config is None:
-        nodegroup_rke2_extra_config = {}
     tfdir = os.path.join(os.path.dirname(__file__), "..", "..", ".data", "cluster_autoscaler", name_prefix, "terraform")
     existing_name_prefix = (
         os.path.isdir(os.path.join(tfdir, "01-rke2"))
@@ -86,19 +100,7 @@ def run_setup(
                 }
             }
         }))
-    ssh_pubkeys_ini_encoded = ssh_pubkeys.strip().replace("\n", "\\n")
-    with open(os.path.join(tfdir, "02-k8s", "ktb.auto.tfvars.json"), "w") as f:
-        f.write(json.dumps({
-            "cluster_autoscaler_kamatera_api_client_id": kamatera_api_client_id,
-            "cluster_autoscaler_kamatera_api_secret": kamatera_api_secret,
-            "cluster_autoscaler_image": "ghcr.io/kamatera/kubernetes-autoscaler:v1.32-with-node-template-labels",
-            "cluster_autoscaler_global_config": f'''
-default-ssh-key="{ssh_pubkeys_ini_encoded}"
-''',
-
-            "cluster_autoscaler_nodegroup_configs": nodegroup_configs,
-            "cluster_autoscaler_nodegroup_rke2_extra_config": nodegroup_rke2_extra_config
-        }))
+    write_k8s_vars(name_prefix, kamatera_api_client_id, kamatera_api_secret, ssh_pubkeys=ssh_pubkeys)
     subprocess.check_call(["terraform", "init"], cwd=os.path.join(tfdir, "01-rke2"))
     subprocess.check_call(["terraform", "apply", "-auto-approve"], cwd=os.path.join(tfdir, "01-rke2"))
     subprocess.check_call(["terraform", "init"], cwd=os.path.join(tfdir, "02-k8s"))
@@ -123,24 +125,50 @@ def destroy(name_prefix):
     ])
 
 
-def main():
+def reset(name_prefix):
+    kamatera_api_client_id = os.getenv("KAMATERA_API_CLIENT_ID")
+    kamatera_api_secret = os.getenv("KAMATERA_API_SECRET")
+    write_k8s_vars(name_prefix, kamatera_api_client_id, kamatera_api_secret)
+    tfdir = str(os.path.join(os.path.dirname(__file__), "..", "..", ".data", "cluster_autoscaler", name_prefix, "terraform"))
+    subprocess.call([
+        "kubectl", "delete", "ns", "ktbca-autoscaler-up-down"
+    ], env={
+        **os.environ,
+        "KUBECONFIG": os.path.join(tfdir, ".kubeconfig"),
+    })
+    subprocess.check_call([
+        "git", "pull", "origin", "main",
+    ], cwd=tfdir)
+    subprocess.check_call(["terraform", "init"], cwd=os.path.join(tfdir, "02-k8s"))
+    subprocess.check_call(["terraform", "apply", "-auto-approve"], cwd=os.path.join(tfdir, "02-k8s"))
+    subprocess.check_call([
+        "cloudcli",
+        "--api-clientid", kamatera_api_client_id,
+        "--api-secret", kamatera_api_secret,
+        "server", "terminate", "--force", "--name", f'{name_prefix}-autoscaler-.*'
+    ])
+
+
+def main(action='setup'):
     dotenv.load_dotenv()
     kamatera_api_client_id = os.getenv("KAMATERA_API_CLIENT_ID")
     kamatera_api_secret = os.getenv("KAMATERA_API_SECRET")
     if not kamatera_api_client_id or not kamatera_api_secret:
         raise Exception("KAMATERA_API_CLIENT_ID and KAMATERA_API_SECRET are required")
     name_prefix = os.getenv("KTBCA_NAME_PREFIX")
-    nodegroup_configs = load_json_env("KTBCA_NODEGROUP_CONFIGS_JSON")
-    nodegroup_rke2_extra_config = load_json_env("KTBCA_NODEGROUP_RKE2_EXTRA_CONFIG_JSON")
-    run_setup(
-        kamatera_api_client_id,
-        kamatera_api_secret,
-        name_prefix=name_prefix,
-        nodegroup_configs=nodegroup_configs,
-        nodegroup_rke2_extra_config=nodegroup_rke2_extra_config,
-    )
+    if action == 'setup':
+        run_setup(
+            kamatera_api_client_id,
+            kamatera_api_secret,
+            name_prefix=name_prefix,
+        )
+    else:
+        assert name_prefix, "KTBCA_NAME_PREFIX is not defined"
+        if action == 'destroy':
+            destroy(name_prefix)
+        elif action == 'reset':
+            reset(name_prefix)
 
 
 if __name__ == "__main__":
-    main()
-
+    main(*sys.argv[1:])
