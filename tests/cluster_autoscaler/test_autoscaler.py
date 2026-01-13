@@ -157,14 +157,17 @@ def get_node_count(kubeconfig_path, label_selector=None):
 def get_servers_count(name_prefix, power=None):
     kamatera_api_client_id = os.getenv("KAMATERA_API_CLIENT_ID")
     kamatera_api_secret = os.getenv("KAMATERA_API_SECRET")
-    servers = json.loads(subprocess.check_output([
-        "cloudcli",
-        "--api-clientid", kamatera_api_client_id,
-        "--api-secret", kamatera_api_secret,
-        "server", "info",
-        "--name", f'{name_prefix}-autoscaler-.*',
-        "--format", "json",
-    ]))
+    try:
+        servers = json.loads(subprocess.check_output([
+            "cloudcli",
+            "--api-clientid", kamatera_api_client_id,
+            "--api-secret", kamatera_api_secret,
+            "server", "info",
+            "--name", f'{name_prefix}-autoscaler-.*',
+            "--format", "json",
+        ]))
+    except:
+        servers = []
     if power:
         servers = [s for s in servers if s.get("power") == power]
     return len(servers)
