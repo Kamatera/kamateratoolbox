@@ -27,7 +27,10 @@ jobs:
           chmod +x cloudcli
           sudo mv cloudcli /usr/local/bin/cloudcli
       - run: |
-          ssh-keygen -t rsa -b 4096 -N "" -f ~/.ssh/id_rsa
+          mkdir -p ~/.ssh
+          echo "${{ secrets.TESTING_SSHKEY_PUB }}" > ~/.ssh/id_rsa.pub
+          echo "${{ secrets.TESTING_SSHKEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
       - env:
           K8S_VERSION: ${{ matrix.k8s_version }}
           KAMATERA_API_CLIENT_ID: ${{ secrets.KAMATERA_API_CLIENT_ID }}
