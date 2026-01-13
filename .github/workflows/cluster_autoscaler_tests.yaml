@@ -20,6 +20,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
+      - uses: hashicorp/setup-terraform@v3
+      - run: |
+          wget https://cloudcli.cloudwm.com/binaries/latest/cloudcli-linux-amd64.tar.gz
+          tar -xvf cloudcli-linux-amd64.tar.gz
+          chmod +x cloudcli
+          sudo mv cloudcli /usr/local/bin/cloudcli
       - env:
           K8S_VERSION: ${{ matrix.k8s_version }}
           KAMATERA_API_CLIENT_ID: ${{ secrets.KAMATERA_API_CLIENT_ID }}
