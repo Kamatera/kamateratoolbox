@@ -19,9 +19,17 @@ def load_json_env(var_name):
         raise Exception(f"{var_name} must be valid JSON: {exc}") from exc
 
 
-def write_k8s_vars(name_prefix, kamatera_api_client_id, kamatera_api_secret, ssh_pubkeys=None):
+def get_ssh_pubkeys(ssh_pubkeys=None):
     if not ssh_pubkeys:
-        ssh_pubkeys = subprocess.check_output(["bash", "-c", "cat ~/.ssh/*.pub"]).decode().strip()
+        try:
+            ssh_pubkeys = subprocess.check_output(["bash", "-c", "cat ~/.ssh/*.pub"]).decode().strip()
+        except:
+            ssh_pubkeys = ""
+    return ssh_pubkeys or ""
+
+
+def write_k8s_vars(name_prefix, kamatera_api_client_id, kamatera_api_secret, ssh_pubkeys=None):
+    ssh_pubkeys = get_ssh_pubkeys(ssh_pubkeys)
     tfdir = str(os.path.join(os.path.dirname(__file__), "..", "..", ".data", "cluster_autoscaler", name_prefix, "terraform"))
     ssh_pubkeys_ini_encoded = ssh_pubkeys.strip().replace("\n", "\\n")
     k8s_version = os.getenv("K8S_VERSION")
@@ -56,10 +64,7 @@ def run_setup(
 ):
     if name_prefix is None:
         name_prefix = f'kca{datetime.datetime.now().strftime("%m%d")}{secrets.token_hex(2)}'
-    if ssh_pubkeys is None:
-        ssh_pubkeys = subprocess.check_output(["bash", "-c", "cat ~/.ssh/*.pub"]).decode().strip()
-    if not ssh_pubkeys:
-        raise Exception("No SSH keys found in ssh-agent; run ssh-add")
+    ssh_pubkeys = get_ssh_pubkeys(ssh_pubkeys)
     tfdir = os.path.join(os.path.dirname(__file__), "..", "..", ".data", "cluster_autoscaler", name_prefix, "terraform")
     existing_name_prefix = (
         os.path.isdir(os.path.join(tfdir, "01-rke2"))
