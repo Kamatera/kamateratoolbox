@@ -9,14 +9,7 @@ Tools to run integration testing for the Kamatera 3rd party drivers
 Install
 
 ```
-python3 -m venv venv
-venv/bin/pip install -r requirements.txt
-```
-
-Activate the environment
-
-```
-. venv/bin/activate
+uv sync
 ```
 
 Set env vars
