@@ -37,7 +37,7 @@ def write_k8s_vars(name_prefix, kamatera_api_client_id, kamatera_api_secret, ssh
     cluster_autoscaler_image = {
         "1.34": "ghcr.io/kamatera/kubernetes-autoscaler:v1.34",
         "1.33": "ghcr.io/kamatera/kubernetes-autoscaler:v1.33",
-        "1.32": "ghcr.io/kamatera/kubernetes-autoscaler:v1.32-with-node-template-labels",
+        "1.32": "ghcr.io/kamatera/kubernetes-autoscaler:v1.32-with-2026-01-14-fixes",
     }[k8s_version]
     with open(os.path.join(tfdir, "02-k8s", "ktb.auto.tfvars.json"), "w") as f:
         f.write(json.dumps({
@@ -132,41 +132,50 @@ def run_setup(
 
 
 def destroy(name_prefix):
-    tfdir = str(os.path.join(os.path.dirname(__file__), "..", "..", ".data", "cluster_autoscaler", name_prefix, "terraform"))
-    if os.path.isdir(os.path.join(tfdir, "02-k8s")):
-        try:
-            subprocess.check_call(["terraform", "destroy", "-auto-approve"], cwd=os.path.join(tfdir, "02-k8s"))
-        except:
-            traceback.print_exc()
-            print("Terraform destroy failed, retrying in 5 minutes")
-            time.sleep(300)
-            subprocess.check_call(["terraform", "destroy", "-auto-approve"], cwd=os.path.join(tfdir, "02-k8s"))
-    if os.path.isdir(os.path.join(tfdir, "01-rke2")):
-        try:
-            subprocess.check_call(["terraform", "destroy", "-auto-approve"], cwd=os.path.join(tfdir, "01-rke2"))
-        except:
-            traceback.print_exc()
-            print("Terraform destroy failed, retrying in 5 minutes")
-            time.sleep(300)
-            subprocess.check_call(["terraform", "destroy", "-auto-approve"], cwd=os.path.join(tfdir, "01-rke2"))
     kamatera_api_client_id = os.getenv("KAMATERA_API_CLIENT_ID")
     kamatera_api_secret = os.getenv("KAMATERA_API_SECRET")
-    try:
+    subprocess.check_call([
+        "cloudcli",
+        "--api-clientid", kamatera_api_client_id,
+        "--api-secret", kamatera_api_secret,
+        "server", "terminate", "--force", "--name", f'{name_prefix}.*'
+    ])
+    networks = json.loads(subprocess.check_output([
+        "cloudcli",
+        "--api-clientid", kamatera_api_client_id,
+        "--api-secret", kamatera_api_secret,
+        "network", "list", "--datacenter", "US-NY2",
+        "--format", "json"
+    ]))
+    network_vlan_ids = set()
+    network_ids = set()
+    for network in networks:
+        for name in network['names']:
+            if name_prefix in name:
+                network_vlan_ids.add(network["vlanId"])
+                for id_ in network["ids"]:
+                    network_ids.add(id_)
+    for network_vlan_id in network_vlan_ids:
+        subnets = json.loads(subprocess.check_output([
+            "cloudcli",
+            "--api-clientid", kamatera_api_client_id,
+            "--api-secret", kamatera_api_secret,
+            "network", "subnet_list", f"--vlanId={network_vlan_id}", "--datacenter=US-NY2",
+            "--format", "json"
+        ]))
+        for subnet in subnets:
+            subprocess.check_call([
+                "cloudcli",
+                "--api-clientid", kamatera_api_client_id,
+                "--api-secret", kamatera_api_secret,
+                "network", "subnet_delete", f'--subnetId={subnet["subnetId"]}'
+            ])
+    for network_id in network_ids:
         subprocess.check_call([
             "cloudcli",
             "--api-clientid", kamatera_api_client_id,
             "--api-secret", kamatera_api_secret,
-            "server", "terminate", "--force", "--name", f'{name_prefix}.*'
-        ])
-    except:
-        traceback.print_exc()
-        print("CloudCLI server terminate failed, retrying in 5 minutes")
-        time.sleep(300)
-        subprocess.check_call([
-            "cloudcli",
-            "--api-clientid", kamatera_api_client_id,
-            "--api-secret", kamatera_api_secret,
-            "server", "terminate", "--force", "--name", f'{name_prefix}.*'
+            "network", "delete", f'--id={network_id}', "--datacenter=US-NY2",
         ])
 
 

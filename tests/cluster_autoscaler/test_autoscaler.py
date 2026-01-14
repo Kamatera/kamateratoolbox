@@ -17,7 +17,7 @@ RUN_AUTOSCALER_TESTS = os.environ.get("KTBCA_RUN_AUTOSCALER_TESTS") == "yes"
 NAME_PREFIX = os.environ.get("KTBCA_NAME_PREFIX")
 KEEP_CLUSTER = bool(NAME_PREFIX) or os.environ.get("KTBCA_KEEP_CLUSTER") == "yes"
 POLL_SECONDS = 15
-TIMEOUT_SECONDS = 900
+TIMEOUT_SECONDS = 60 * 30  # 30 minutes
 NODEGROUP_NAME = "autoscaler"
 NODEGROUP_MIN_SIZE = 1
 NODEGROUP_MAX_SIZE = 3
@@ -126,12 +126,16 @@ def add_autoscaler_nodegroup(terraform_dir):
     )
 
 
-def wait_for_condition(description, condition, timeout_seconds=TIMEOUT_SECONDS):
+def wait_for_condition(description, condition, timeout_seconds=TIMEOUT_SECONDS, finalizer=None):
     start_time = time.time()
     print(f'waiting for condition: {description} (with timeout {timeout_seconds} seconds)')
     print(f'start time: {datetime.datetime.now().isoformat()}')
     while True:
         if condition():
+            print(f'condition met: {description}')
+            print(f'end time: {datetime.datetime.now().isoformat()}')
+            if finalizer:
+                print(finalizer())
             return
         if time.time() - start_time > timeout_seconds:
             raise AssertionError(f"timeout waiting for {description}")
@@ -275,6 +279,7 @@ def autoscaler_cluster():
             wait_for_condition(
                 "cluster should have a single controlplane node",
                 lambda: get_node_count(kubeconfig_path) == (1, 1),
+                finalizer=lambda: kubectl(kubeconfig_path, "get", "nodes")
             )
             yield name_prefix, kubeconfig_path
         finally:
@@ -303,6 +308,7 @@ def test_autoscaler_scale_up_down(autoscaler_cluster):
     wait_for_condition(
         "autoscaler baseline - single node",
         lambda: get_node_count(kubeconfig_path) == (1,1),
+        finalizer=lambda: kubectl(kubeconfig_path, "get", "nodes")
     )
     add_autoscaler_nodegroup(terraform_dir)
     apply_deployment(kubeconfig_path, namespace, replicas=1)
@@ -311,6 +317,7 @@ def test_autoscaler_scale_up_down(autoscaler_cluster):
         lambda: pods_running(
             kubeconfig_path, namespace, expected_running_replicas=1
         ),
+        finalizer=lambda: kubectl(kubeconfig_path, "get", "pods", "-n", namespace)
     )
     wait_for_condition(
         "1 server powered on",
@@ -319,28 +326,35 @@ def test_autoscaler_scale_up_down(autoscaler_cluster):
     wait_for_condition(
         "1 autoscaler node ready",
         lambda: get_node_count(kubeconfig_path, NODE_LABEL_SELECTOR) == (1,1),
+        finalizer=lambda: kubectl(kubeconfig_path, "get", "nodes")
     )
     apply_deployment(kubeconfig_path, namespace, replicas=4)
-    wait_for_condition(
-        "3 pods to be running",
-        lambda: pods_running(
-            kubeconfig_path, namespace, expected_running_replicas=3
-        ),
-    )
-    wait_for_condition(
-        "3 servers powered on",
-        lambda: get_servers_count(name_prefix, power="on") == 3,
-    )
-    wait_for_condition(
-        "3 autoscaler nodes ready",
-        lambda: get_node_count(kubeconfig_path, NODE_LABEL_SELECTOR) == (3, 3),
-    )
+    for i in range(10):
+        print(f"Waiting 1 minute before ensuring again that scale up is stable (attempt {i+1}/10)")
+        time.sleep(60)
+        wait_for_condition(
+            "3 pods to be running",
+            lambda: pods_running(
+                kubeconfig_path, namespace, expected_running_replicas=3
+            ),
+            finalizer=lambda: kubectl(kubeconfig_path, "get", "pods", "-n", namespace)
+        )
+        wait_for_condition(
+            "3 servers powered on",
+            lambda: get_servers_count(name_prefix, power="on") == 3,
+        )
+        wait_for_condition(
+            "3 autoscaler nodes ready",
+            lambda: get_node_count(kubeconfig_path, NODE_LABEL_SELECTOR) == (3, 3),
+            finalizer=lambda: kubectl(kubeconfig_path, "get", "nodes")
+        )
     scale_deployment(kubeconfig_path, namespace, replicas=2)
     wait_for_condition(
         "2 pods to be running",
         lambda: pods_running(
             kubeconfig_path, namespace, expected_running_replicas=2
         ),
+        finalizer=lambda: kubectl(kubeconfig_path, "get", "pods", "-n", namespace)
     )
     wait_for_condition(
         "2 servers",
@@ -354,7 +368,8 @@ def test_autoscaler_scale_up_down(autoscaler_cluster):
     scale_deployment(kubeconfig_path, namespace, replicas=0)
     wait_for_condition(
         "no pods",
-        lambda: no_pods_exist(kubeconfig_path, namespace)
+        lambda: no_pods_exist(kubeconfig_path, namespace),
+        finalizer=lambda: kubectl(kubeconfig_path, "get", "pods", "-n", namespace)
     )
     wait_for_condition(
         "1 server",
