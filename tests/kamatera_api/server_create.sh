@@ -38,7 +38,7 @@ curl \
     "srcUI": false,
     "selectedKey": null,
     "script": "",
-    "selectedSSHKeyValue": "",
+    "selectedSSHKeyValue": "'"$(cat ~/.ssh/id_rsa.pub)"'",
     "selectedTags": [],
     "userData": ""
   }' "https://console.kamatera.com/svc/serverCreate"
